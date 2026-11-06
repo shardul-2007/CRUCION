@@ -56,91 +56,80 @@ export function CommandSearchModal() {
       <div className="space-y-4">
         {/* Search input field */}
         <div className="relative flex items-center">
-          <Search className="absolute left-3.5 h-4 w-4 text-[#8B5CF6]" />
+          <Search className="absolute left-3.5 h-4 w-4 text-[#0066cc]" />
           <input
             type="text"
-            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search commands, modules, containers, or projects..."
-            className="w-full rounded-xl border border-white/10 bg-[#0E121D] py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#8B5CF6] focus:ring-1 focus:ring-[#8B5CF6]"
+            placeholder="Type a command, module name, or project to search..."
+            className="w-full h-11 bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0066cc]"
+            autoFocus
           />
         </div>
 
-        {/* Quick Actions */}
-        <div className="space-y-1">
-          <div className="px-2 text-[10px] font-mono uppercase tracking-wider text-slate-500">
-            Quick Actions
-          </div>
+        {/* Quick action: Create new project */}
+        <div className="flex items-center justify-between p-2 rounded-lg bg-sky-50/50 border border-sky-100 text-xs">
+          <span className="text-slate-600 font-medium">Quick Provision:</span>
           <button
             type="button"
             onClick={() => {
               setIsCommandPaletteOpen(false);
               setIsNewProjectModalOpen(true);
             }}
-            className="w-full flex items-center justify-between p-2.5 rounded-lg text-xs text-left text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0066cc] text-white font-medium hover:bg-[#0052a3] transition-colors"
           >
-            <div className="flex items-center gap-2.5">
-              <Plus className="h-4 w-4 text-[#8B5CF6]" />
-              <span className="font-medium">Forge New Project with Container Profile</span>
-            </div>
-            <span className="text-[10px] font-mono text-[#8B5CF6]">CRUCION FORGE</span>
+            <Plus className="h-3 w-3" />
+            <span>Forge Project</span>
           </button>
         </div>
 
-        {/* Modules Navigation */}
-        <div className="space-y-1">
-          <div className="px-2 text-[10px] font-mono uppercase tracking-wider text-slate-500">
-            Platform Modules ({filteredNav.length})
-          </div>
-          <div className="max-h-48 overflow-y-auto space-y-1">
-            {filteredNav.map((item) => (
+        {/* Search Results */}
+        <div className="max-h-80 overflow-y-auto space-y-4 pr-1 divide-y divide-slate-100">
+          {/* Projects matched */}
+          {filteredProjects.length > 0 && (
+            <div className="space-y-1 pt-2 first:pt-0">
+              <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold px-2">
+                Workspaces & Projects
+              </div>
+              {filteredProjects.slice(0, 4).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectNav("projects")}
+                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 text-left transition-colors text-xs"
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <FolderGit2 className="h-4 w-4 text-[#0066cc] shrink-0" />
+                    <span className="font-semibold text-slate-900 truncate">{p.name}</span>
+                    <span className="text-[10px] font-mono text-slate-400">({p.containerRuntime})</span>
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Navigation Items matched */}
+          <div className="space-y-1 pt-2">
+            <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold px-2">
+              Command Modules
+            </div>
+            {filteredNav.slice(0, 6).map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => handleSelectNav(item.id)}
-                className="w-full flex items-center justify-between p-2 rounded-lg text-xs text-left text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 text-left transition-colors text-xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-slate-400">›</span>
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-medium text-slate-700">{item.label}</span>
+                  <span className="text-[10px] font-mono text-slate-400">({item.brandModule})</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-slate-500">{item.brandModule}</span>
-                  <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
-                </div>
+                <span className="text-[10px] font-mono text-slate-400">{item.category}</span>
               </button>
             ))}
           </div>
         </div>
-
-        {/* Matching Projects */}
-        {filteredProjects.length > 0 && (
-          <div className="space-y-1 pt-2 border-t border-white/[0.06]">
-            <div className="px-2 text-[10px] font-mono uppercase tracking-wider text-slate-500">
-              Active Projects ({filteredProjects.length})
-            </div>
-            <div className="max-h-40 overflow-y-auto space-y-1">
-              {filteredProjects.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveNav("projects");
-                    setIsCommandPaletteOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-lg text-xs text-left hover:bg-white/[0.06] transition-colors"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-mono text-white text-[12px]">{p.name}</span>
-                    <span className="text-[10px] text-slate-400 line-clamp-1">{p.description}</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#22D3EE]">{p.containerRuntime}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </Modal>
   );

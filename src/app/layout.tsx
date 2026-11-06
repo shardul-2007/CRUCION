@@ -24,21 +24,21 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "CRUCION — Universal Software Engineering Ecosystem",
   description:
-    "One Container. Every Technology. From Idea to Enterprise. The unified high-performance engineering command center, autonomous AgentOS, and microVM cloud platform.",
+    "One Container. Every Technology. From Idea to Enterprise. Unified engineering command center, autonomous AgentOS, microVM cloud platform, and zero-downtime canary pipelines.",
   keywords: [
     "CRUCION",
     "Universal Container",
     "Software Engineering",
     "AgentOS",
-    "Cloud Infrastructure",
-    "MicroVM",
+    "MicroVM Cloud",
     "DevOps",
+    "Enterprise AI",
   ],
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0B0D14",
-  colorScheme: "dark",
+  themeColor: "#ffffff",
+  colorScheme: "light",
   width: "device-width",
   initialScale: 1,
 };
@@ -51,13 +51,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} dark`}
-      style={{ colorScheme: "dark" }}
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
-      <head>
-        <meta name="color-scheme" content="dark" />
-      </head>
-      <body className="min-h-screen bg-[#0B0D14] text-slate-100 antialiased selection:bg-[#8B5CF6]/30 selection:text-white">
+      <body className="min-h-screen bg-white text-slate-900 antialiased selection:bg-[#0284c7]/20 selection:text-slate-900">
         <CrucionStoreProvider>
           {children}
         </CrucionStoreProvider>

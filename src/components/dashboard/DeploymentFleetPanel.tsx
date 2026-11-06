@@ -8,11 +8,8 @@ import {
   Activity,
   Cpu,
   Layers,
-  ArrowUpRight,
-  GitCommit,
   ExternalLink,
   ShieldCheck,
-  RefreshCw,
 } from "lucide-react";
 import { useCrucionStore } from "@/lib/store";
 import { Card } from "@/components/ui/Card";
@@ -29,7 +26,7 @@ export function DeploymentFleetPanel() {
       case "staging":
         return <Badge variant="amber" size="sm" dot>Staging</Badge>;
       case "edge-container":
-        return <Badge variant="fusion" size="sm" dot>Edge Fleet</Badge>;
+        return <Badge variant="blue" size="sm" dot>Edge Fleet</Badge>;
       default:
         return <Badge variant="outline" size="sm">{env}</Badge>;
     }
@@ -40,7 +37,7 @@ export function DeploymentFleetPanel() {
       case "live":
         return <Badge variant="emerald" size="sm">100% Traffic</Badge>;
       case "rolling_update":
-        return <Badge variant="crucible" size="sm">Rolling Update</Badge>;
+        return <Badge variant="blue" size="sm">Rolling Update</Badge>;
       case "canary":
         return <Badge variant="amber" size="sm">Canary (20%)</Badge>;
       default:
@@ -51,101 +48,90 @@ export function DeploymentFleetPanel() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#111522] p-4 rounded-xl border border-white/[0.07]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-[#34D399]/10 border border-[#34D399]/30 text-[#34D399]">
+          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
             <Rocket className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white font-['Space_Grotesk',sans-serif] flex items-center gap-2">
-              MicroVM Container Fleet & Deployments
-              <Badge variant="emerald" size="sm">
-                CRUCION DEPLOY
-              </Badge>
+            <h3 className="text-base font-semibold text-slate-900 font-['Space_Grotesk',sans-serif] flex items-center gap-2">
+              <span>CRUCION DEPLOY — Global MicroVM Fleets</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Zero-downtime rolling upgrades, anycast edge routing, and automated rollback health checks.
+            <p className="text-xs text-slate-500">
+              Zero-downtime rolling updates, canary distributions, and sub-5ms anycast POPs.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-[#34D399]" />
-          <span>Global Anycast: 48 POPs Online</span>
+        <div className="flex items-center gap-2">
+          <Badge variant="emerald" size="sm" dot>
+            48 Edge POPs Active
+          </Badge>
         </div>
       </div>
 
-      {/* Deployments Table / Cards */}
+      {/* Deployment Cards List */}
       <div className="space-y-3">
         {deployments.map((dep) => (
-          <Card
-            key={dep.id}
-            className="p-4 bg-[#111522] border-white/[0.08] hover:border-white/15 transition-all"
-          >
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Left Column: Project, Env, Commit */}
-              <div className="space-y-1.5 flex-1">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="font-bold text-white text-sm font-['Space_Grotesk',sans-serif]">
-                    {dep.projectName}
-                  </span>
-                  {getEnvBadge(dep.environment)}
-                  {getStatusBadge(dep.status)}
-                </div>
+          <Card key={dep.id} className="p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-sm text-slate-900">{dep.projectName}</span>
+                {getEnvBadge(dep.environment)}
+                {getStatusBadge(dep.status)}
+              </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <GitCommit className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                  <span className="font-mono text-slate-400">{dep.commitSha}</span>
-                  <span className="text-slate-400 truncate max-w-sm">{dep.commitMsg}</span>
-                </div>
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="text-slate-400">Deployed {dep.deployedAt}</span>
+                <a
+                  href={dep.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#0066cc] hover:underline flex items-center gap-1 font-medium"
+                >
+                  <span>{dep.liveUrl}</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
 
-                <div className="flex items-center gap-4 text-[11px] font-mono text-slate-500 pt-0.5">
-                  <span>Region: {dep.region}</span>
-                  <span>Deployed: {dep.deployedAt}</span>
-                  <a
-                    href={dep.liveUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[#22D3EE] hover:underline"
-                  >
-                    <span>{dep.liveUrl}</span>
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
+            {/* Commit and Performance stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+              <div className="sm:col-span-7 space-y-1">
+                <div className="text-xs font-mono text-slate-700 flex items-center gap-2">
+                  <span className="text-slate-400">Commit:</span>
+                  <span className="font-bold">{dep.commitSha}</span>
+                  <span className="text-slate-500">· {dep.commitMsg}</span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  Region: {dep.region} · Verification: 100% Cosign Signed
                 </div>
               </div>
 
-              {/* Right Column: Performance Telemetry & Promotion Action */}
-              <div className="flex items-center justify-between lg:justify-end gap-5 border-t lg:border-t-0 pt-3 lg:pt-0 border-white/[0.06]">
-                <div className="flex items-center gap-5 text-xs font-mono">
-                  <div>
-                    <div className="text-[10px] text-slate-500 uppercase">Latency</div>
-                    <span className="text-[#34D399] font-bold">{dep.latencyMs}ms</span>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-500 uppercase">CPU Load</div>
-                    <span className="text-slate-200 font-medium">{dep.cpuPercent}%</span>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-slate-500 uppercase">Memory</div>
-                    <span className="text-slate-200 font-medium">{dep.memoryMb}MB</span>
-                  </div>
+              <div className="sm:col-span-5 flex items-center justify-between sm:justify-end gap-3 text-xs font-mono">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-center">
+                  <div className="text-slate-400 text-[10px]">Latency</div>
+                  <div className="text-emerald-700 font-bold">{dep.latencyMs}ms</div>
                 </div>
 
-                {dep.status === "canary" ? (
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-center">
+                  <div className="text-slate-400 text-[10px]">CPU</div>
+                  <div className="text-slate-900 font-bold">{dep.cpuPercent}%</div>
+                </div>
+
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-center">
+                  <div className="text-slate-400 text-[10px]">Memory</div>
+                  <div className="text-slate-900 font-bold">{dep.memoryMb}MB</div>
+                </div>
+
+                {dep.status === "canary" && (
                   <Button
                     size="sm"
                     variant="emerald"
                     onClick={() => promoteDeployment(dep.id)}
-                    className="shrink-0"
                   >
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                    <span>Promote 100%</span>
+                    Promote 100%
                   </Button>
-                ) : (
-                  <div className="flex items-center gap-1 text-xs text-[#34D399] font-mono">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Healthy</span>
-                  </div>
                 )}
               </div>
             </div>

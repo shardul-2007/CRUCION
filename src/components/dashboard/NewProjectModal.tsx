@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useCrucionStore } from "@/lib/store";
+import { createProjectAction } from "@/app/actions/workspace";
 import { Hammer, Sparkles, Box, Server, Check } from "lucide-react";
 
 export function NewProjectModal() {
@@ -12,22 +13,23 @@ export function NewProjectModal() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [runtime, setRuntime] = useState<"Rust / LLVM" | "Node 24 / V8" | "Python 3.12 / PyPy" | "Go 1.23" | "Solidity / EVM">("Rust / LLVM");
-  const [stackInput, setStackInput] = useState("Rust, Tokio, WASM");
+  const [runtime, setRuntime] = useState<"Rust / LLVM" | "Node 24 / V8" | "Python 3.12 / PyPy" | "Go 1.23" | "Solidity / EVM">("Node 24 / V8");
+  const [gitRepoUrl, setGitRepoUrl] = useState("");
   const [cluster, setCluster] = useState<"us-east-metal" | "eu-central-edge" | "ap-south-gpu">("us-east-metal");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const runtimes = [
-    {
-      id: "Rust / LLVM" as const,
-      label: "Rust / LLVM",
-      desc: "MicroVM native, zero-cost abstractions, extreme memory safety.",
-    },
     {
       id: "Node 24 / V8" as const,
       label: "Node 24 / V8",
       desc: "Next.js App Router, TypeScript, ultra-fast asynchronous event loops.",
+    },
+    {
+      id: "Rust / LLVM" as const,
+      label: "Rust / LLVM",
+      desc: "MicroVM native, zero-cost abstractions, extreme memory safety.",
     },
     {
       id: "Python 3.12 / PyPy" as const,
@@ -46,165 +48,193 @@ export function NewProjectModal() {
     },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      const stack = stackInput
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+    setErrorMsg("");
+    setSuccessMsg("");
 
+    const formData = new FormData();
+    formData.append("name", name.trim());
+    formData.append("description", description.trim());
+    formData.append("containerRuntime", runtime);
+    formData.append("cluster", cluster);
+    if (gitRepoUrl.trim()) {
+      formData.append("gitRepoUrl", gitRepoUrl.trim());
+    }
+
+    // Call real server action with DB persistence
+    const res = await createProjectAction(formData);
+    setIsSubmitting(false);
+
+    if (res.success) {
       addProject({
         name: name.toLowerCase().replace(/\s+/g, "-"),
         description: description || "Containerized workspace provisioned on CRUCION microVM cluster.",
         containerRuntime: runtime,
-        stack: stack.length > 0 ? stack : ["Crucion Core", "Container"],
+        stack: [runtime.split(" ")[0], "MicroVM", "eBPF"],
         status: "active",
         cluster,
       });
 
-      setIsSubmitting(false);
-      setSuccessMsg(`Project "${name}" forged successfully!`);
+      setSuccessMsg(res.message);
       setTimeout(() => {
-        setSuccessMsg("");
         setIsNewProjectModalOpen(false);
         setName("");
         setDescription("");
-      }, 1000);
-    }, 600);
+        setGitRepoUrl("");
+        setSuccessMsg("");
+      }, 1200);
+    } else {
+      setErrorMsg(res.message);
+    }
   };
 
   return (
     <Modal
       isOpen={isNewProjectModalOpen}
       onClose={() => setIsNewProjectModalOpen(false)}
-      title={
-        <div className="flex items-center gap-2">
-          <Hammer className="h-5 w-5 text-[#8B5CF6]" />
-          <span>CRUCION FORGE — Scaffold Project</span>
-        </div>
-      }
-      description="Provision an isolated container workspace with optimized memory limits, tool sandbox, and deployment pipeline."
+      title="Create New Project"
+      description="Scaffold an isolated microVM workspace with automated toolchains, git synchronization, and zero-downtime deploy hooks."
       maxWidth="xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {successMsg && (
-          <div className="p-3 rounded-lg bg-[#34D399]/15 border border-[#34D399]/30 text-[#34D399] text-xs flex items-center gap-2">
-            <Check className="h-4 w-4" />
-            <span>{successMsg}</span>
+      {successMsg ? (
+        <div className="py-8 text-center space-y-3">
+          <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
+            <Check className="h-6 w-6" />
           </div>
-        )}
-
-        {/* Project Name */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono uppercase text-slate-300 font-medium">
-            Project Identifier
-          </label>
-          <Input
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. quantum-gateway or telemetry-agent"
-          />
+          <h3 className="text-base font-bold text-slate-900 font-['Space_Grotesk',sans-serif]">
+            {successMsg}
+          </h3>
+          <p className="text-xs text-slate-500 font-mono">
+            Provisioned in cluster: {cluster}
+          </p>
         </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              {errorMsg}
+            </div>
+          )}
 
-        {/* Description */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono uppercase text-slate-300 font-medium">
-            Project Scope & Objective
-          </label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. Low-latency edge service with automatic container failover."
-          />
-        </div>
-
-        {/* Container Runtime Selection */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono uppercase text-slate-300 font-medium">
-            Container Runtime Architecture
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-            {runtimes.map((rt) => (
-              <button
-                key={rt.id}
-                type="button"
-                onClick={() => setRuntime(rt.id)}
-                className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
-                  runtime === rt.id
-                    ? "bg-[#8B5CF6]/15 border-[#8B5CF6] shadow-[0_0_15px_-4px_rgba(139,92,246,0.3)]"
-                    : "bg-[#0E121D] border-white/10 hover:border-white/20"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-semibold text-white">{rt.label}</span>
-                  {runtime === rt.id && <Check className="h-3.5 w-3.5 text-[#8B5CF6]" />}
-                </div>
-                <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{rt.desc}</p>
-              </button>
-            ))}
+          {/* Project Name */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              Project Identifier
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. origin-sentinel-v2"
+              required
+              autoFocus
+            />
           </div>
-        </div>
 
-        {/* Stack Tags */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono uppercase text-slate-300 font-medium">
-            Tech Stack Tags (Comma Separated)
-          </label>
-          <Input
-            value={stackInput}
-            onChange={(e) => setStackInput(e.target.value)}
-            placeholder="e.g. Rust, Tokio, eBPF, gRPC"
-          />
-        </div>
-
-        {/* Target Cluster */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-mono uppercase text-slate-300 font-medium">
-            Target MicroVM Cluster
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { id: "us-east-metal" as const, label: "us-east-metal", ping: "1.2ms" },
-              { id: "eu-central-edge" as const, label: "eu-central-edge", ping: "2.1ms" },
-              { id: "ap-south-gpu" as const, label: "ap-south-gpu", ping: "4.6ms" },
-            ].map((cl) => (
-              <button
-                key={cl.id}
-                type="button"
-                onClick={() => setCluster(cl.id)}
-                className={`p-2 rounded-lg border text-center font-mono text-xs cursor-pointer ${
-                  cluster === cl.id
-                    ? "bg-[#22D3EE]/15 border-[#22D3EE] text-[#67E8F9]"
-                    : "bg-[#0E121D] border-white/10 text-slate-400 hover:text-white"
-                }`}
-              >
-                <div>{cl.label}</div>
-                <div className="text-[9px] text-[#34D399]">{cl.ping}</div>
-              </button>
-            ))}
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              Description
+            </label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. High-throughput edge traffic classifier and proxy"
+            />
           </div>
-        </div>
 
-        {/* Submit Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.08]">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsNewProjectModalOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" isLoading={isSubmitting}>
-            <Sparkles className="h-4 w-4" />
-            <span>Forge Project</span>
-          </Button>
-        </div>
-      </form>
+          {/* Container Runtime Selection */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              Container Runtime & Toolchain
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {runtimes.map((rt) => {
+                const isSelected = runtime === rt.id;
+                return (
+                  <button
+                    key={rt.id}
+                    type="button"
+                    onClick={() => setRuntime(rt.id)}
+                    className={`p-3 rounded-lg text-left transition-all border cursor-pointer ${
+                      isSelected
+                        ? "border-[#0066cc] bg-sky-50 text-slate-900 shadow-xs"
+                        : "border-slate-200 hover:border-slate-300 bg-white text-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs">{rt.label}</span>
+                      {isSelected && <Check className="h-3.5 w-3.5 text-[#0066cc]" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{rt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cluster Selection */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              Target MicroVM Cluster
+            </label>
+            <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+              {[
+                { id: "us-east-metal" as const, label: "us-east-metal", ping: "1.2ms" },
+                { id: "eu-central-edge" as const, label: "eu-central-edge", ping: "2.1ms" },
+                { id: "ap-south-gpu" as const, label: "ap-south-gpu", ping: "4.6ms" },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCluster(c.id)}
+                  className={`p-2 rounded-lg border text-center transition-all ${
+                    cluster === c.id
+                      ? "border-[#0066cc] bg-sky-50 text-[#0066cc] font-bold"
+                      : "border-slate-200 hover:border-slate-300 text-slate-600 bg-white"
+                  }`}
+                >
+                  <div>{c.label}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{c.ping}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Git Sync (Optional) */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700">
+              GitHub Repository Sync (Optional)
+            </label>
+            <Input
+              value={gitRepoUrl}
+              onChange={(e) => setGitRepoUrl(e.target.value)}
+              placeholder="https://github.com/organization/repo.git"
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsNewProjectModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSubmitting}
+            >
+              <span>Provision MicroVM Project</span>
+            </Button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }

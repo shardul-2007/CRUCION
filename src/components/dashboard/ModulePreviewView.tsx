@@ -18,7 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { NavItemId } from "@/types";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BrandBadge } from "@/components/brand/BrandBadge";
@@ -58,169 +58,176 @@ export function ModulePreviewView({ moduleId }: ModulePreviewViewProps) {
     "api-studio": {
       title: "CRUCION API Studio — Contract & Endpoint Mesh",
       desc: "Declarative API contract design, automated OpenAPI/gRPC schema generation, mock container servers, and real-time latency inspection.",
-      brand: "CRUCION CORE",
+      brand: "CRUCION FLOW",
       features: [
-        "Auto-generate TypeScript & Rust SDK clients from protobuf contracts",
-        "Instant mock container generation with realistic synthetic payloads",
-        "mTLS cryptographic endpoint verification and rate-limiting testing",
-        "Integrated latency benchmarking with automated p99 degradation alerts",
+        "Schema-first TypeScript/Rust API client code generation",
+        "Instant mock edge endpoints running inside isolated containers",
+        "Latency profiling with sub-millisecond p99 telemetry",
+        "Zero-trust API token authentication and rate limiting presets",
       ],
-      cliPreview: "$ crucion api mock --schema ./proto/kernel_service.proto --port 8080\nMock container running at http://localhost:8080\nAuto-generated 14 RPC handlers with schema validation",
-      runtimeSpecs: ["Protocol: HTTP/3 & gRPC", "mTLS: v1.3 Required", "OpenAPI: 3.1.0 Strict", "Telemetry: OTLP 1.2"],
+      cliPreview: "$ crucion api test --spec ./openapi.yaml --cluster us-east-metal\nGenerated 14 contract test invariants\nExecuted 14 requests: 100% passed (p99 latency 1.1ms)",
+      runtimeSpecs: ["Envoy Proxy 1.30", "HTTP/3 & gRPC", "mTLS Enabled", "OpenAPI v3.1"],
     },
     "database-studio": {
       title: "CRUCION DATA — Vector & Relational Fabric",
-      desc: "Unified data plane bridging distributed Postgres instances, Kafka event queues, and HNSW vector embedding stores in isolated containers.",
+      desc: "Zero-latency database sandboxes with automated migrations, vector embeddings indexing, and direct Prisma ORM integration.",
       brand: "CRUCION DATA",
       features: [
-        "Schema migrations with zero-downtime shadow table verification",
-        "Vector index benchmarking with Milvus and pgvector accelerators",
-        "Automated cryptographic backup snapshots to S3-compatible immutable storage",
-        "Query latency profiling and index optimization recommendations",
+        "Integrated PostgreSQL with pgvector extension enabled",
+        "Instant ephemeral test database branch creation in <500ms",
+        "Automated schema diffing and Prisma migration generation",
+        "AES-256 encrypted credential storage and connection pooling",
       ],
-      cliPreview: "$ crucion data migrate --cluster us-east-metal --dry-run\nValidating 12 migration scripts against shadow schema...\nNo backward incompatible column drops detected. Status: CLEAR",
-      runtimeSpecs: ["Engine: Distributed PG 17 + Vector", "IOPS: 80,000", "Replication: Multi-Region Raft", "Encryption: AES-256-GCM"],
+      cliPreview: "$ crucion db migrate --schema ./prisma/schema.prisma\nConnecting to isolated PostgreSQL instance (us-east-metal)\nApplied migration: 0_init (12 tables, 18 indexes)",
+      runtimeSpecs: ["PostgreSQL 17", "pgvector 0.7", "Connection Pooling", "Continuous WAL"],
     },
     "testing-lab": {
-      title: "CRUCION TRUST — Autonomous Test Matrix",
-      desc: "Distributed fuzzing, invariant checking, end-to-end integration validation, and AI-driven regression scenario generation.",
-      brand: "CRUCION TRUST",
+      title: "CRUCION Testing Lab — Invariant & Fuzz Harness",
+      desc: "Isolated containerized testing pipelines executing unit tests, integration suites, and Foundry smart contract invariant harnesses.",
+      brand: "CRUCION CORE",
       features: [
-        "Parallelized test execution across 64 containerized worker pods",
-        "Automated flaky test detection with Bayesian regression scoring",
-        "Mutation testing to verify code coverage test quality",
-        "Formal invariant proofs for critical state transitions",
+        "Parallel test runner across isolated microVM cores",
+        "Deterministic mocking of external HTTP/gRPC APIs",
+        "Coverage heatmaps with branch verification",
+        "Automated regression bisect on Git commit histories",
       ],
-      cliPreview: "$ crucion test matrix --workers 32 --fuzz-invariants 10000\nRunning 10,000 fuzz test permutations...\nAll assertions valid. 0 invariant failures detected.",
-      runtimeSpecs: ["Workers: 32 Pods", "Fuzz Engine: LibFuzzer & Foundry", "Coverage: 98.4%", "Deterministic Seeds: Enabled"],
+      cliPreview: "$ crucion test run --parallel --coverage\nRunning 4 test suites across 4 dedicated microVMs...\nAll tests passed in 1.42s (98.4% branch coverage)",
+      runtimeSpecs: ["Cargo test", "Vitest / Jest", "Pytest", "Foundry / Forge"],
     },
     "blockchain-studio": {
-      title: "CRUCION CHAIN — Multi-Chain EVM & ZK Studio",
-      desc: "Smart contract compilation, formal verification, Foundry fuzzing, and local zero-knowledge rollup container node bridging.",
+      title: "CRUCION CHAIN — EVM & ZK-Rollup Studio",
+      desc: "Multi-chain smart contract development environment with Foundry compilation, fuzzing, and zero-knowledge circuit verification.",
       brand: "CRUCION CHAIN",
       features: [
-        "Sub-second compilation and static analysis with Slither and Mythril",
-        "Integrated anvil local testnet container with state forking",
-        "Cross-chain messaging relayer verification and gas profiling",
-        "Zero-knowledge circuit compilation (Circom, Noir) with prover verification",
+        "Solidity 0.8.28 compiler with integrated optimizer passes",
+        "Anvil local testnet with state fork capabilities",
+        "Circom / Halo2 ZK proof verification harness",
+        "Multi-chain deployment scripts with ledger hardware signers",
       ],
-      cliPreview: "$ crucion chain verify --contract BridgeGateway.sol --foundry\nRunning Foundry invariant suite...\nGas optimization suggestions: 14% savings identified in _dispatchToken()",
-      runtimeSpecs: ["Compiler: Solc 0.8.28", "Fuzz Runs: 25,000", "ZK Prover: Halo2 / Plonky3", "Chain IDs: 1, 10, 8453, 42161"],
+      cliPreview: "$ crucion chain compile --contract QuantumGateway.sol\nCompiled with Solc 0.8.28 in 210ms\nRunning 8 invariant tests... 8 passed",
+      runtimeSpecs: ["Foundry Anvil", "Solc 0.8.28", "ZK-SNARK Verifier", "EVM P2P"],
     },
-    "extension-hub": {
-      title: "CRUCION HUB — Universal Extension & Tool Registry",
-      desc: "Curated ecosystem of microVM containers, AgentOS tool plugins, security analyzers, and custom CI/CD pipelines.",
-      brand: "CRUCION HUB",
+    "security-center": {
+      title: "CRUCION SHIELD — Zero-Trust Security Center",
+      desc: "Continuous security audit scanning, SBOM CycloneDX generation, eBPF container syscall policy enforcement, and dependency alerts.",
+      brand: "CRUCION SHIELD",
       features: [
-        "One-click tool grounding installation into AgentOS swarms",
-        "OCI-compliant container packaging for instant runtime distribution",
-        "Cryptographically signed extensions with Cosign and Sigstore attestations",
-        "Community & enterprise private registry support",
+        "Automated software bill of materials (SBOM) generation",
+        "eBPF-enforced container kernel sandbox policies",
+        "Cosign cryptographic image signing on every build",
+        "Continuous vulnerability scanning against OSV & CVE databases",
       ],
-      cliPreview: "$ crucion hub install @crucion/ext-deep-fuzzer\nDownloaded 14MB OCI image layer\nAttestation signature verified by Crucion Shield",
-      runtimeSpecs: ["Format: OCI Spec 1.1", "Signature: Cosign Ed25519", "Registry: hub.crucion.internal", "Sandboxing: Strict gVisor"],
+      cliPreview: "$ crucion shield scan --container workspace-root\nScanning 340 dependency packages...\nZero critical vulnerabilities detected (Score: 100/100)",
+      runtimeSpecs: ["eBPF Tetragon", "Cosign v2", "CycloneDX 1.6", "mTLS Mesh"],
+    },
+    workflows: {
+      title: "CRUCION FLOW — Visual Event-Driven Automation",
+      desc: "Declarative orchestration chaining GitHub webhooks, AgentOS code refactoring, container test suites, and canary deployments.",
+      brand: "CRUCION FLOW",
+      features: [
+        "Visual workflow builder with real-time execution graphs",
+        "Trigger pipelines on Git push, webhook, or cron schedule",
+        "Conditional branching with automated rollback actions",
+        "Encrypted environment secret injection per step",
+      ],
+      cliPreview: "$ crucion flow trigger --pipeline build-and-deploy\nPipeline execution started: run_849204\nStep 1: Container build (complete)\nStep 2: Security scan (complete)\nStep 3: Canary deploy (10% traffic)",
+      runtimeSpecs: ["Event Mesh", "Cron Engine", "Webhook Gateway", "State Machine"],
     },
   };
 
   const details = previewDetails[moduleId] || {
-    title: `${itemConfig?.label || moduleId} — Architecture View`,
-    desc: `The ${itemConfig?.label} capability is part of the ${itemConfig?.brandModule} pillar, engineered for enterprise reliability and container isolation.`,
+    title: itemConfig?.label || "CRUCION Module",
+    desc: `Integrated engineering capability powered by ${itemConfig?.brandModule || "CRUCION Ecosystem"}.`,
     brand: itemConfig?.brandModule || "CRUCION CORE",
     features: [
-      "Integrated microVM container isolation",
-      "Real-time event streaming and telemetry",
-      "Unified role-based access control and zero-trust policies",
+      "Dedicated microVM container runtime",
+      "Sub-second state initialization and synchronization",
+      "Unified telemetry and audit trail logging",
+      "Enterprise RBAC and secret encryption",
     ],
-    cliPreview: `$ crucion ${moduleId} status\nModule: ${itemConfig?.label}\nStatus: Architectural Prototype Phase 1`,
-    runtimeSpecs: ["Status: Phase 1 Preview", "Engine: MicroVM v2.4", "Security: Zero-Trust", "API: REST & gRPC"],
+    cliPreview: `$ crucion ${moduleId} status\nModule: ${itemConfig?.brandModule}\nState: Optimal\nIsolation: MicroVM Verified`,
+    runtimeSpecs: ["Dedicated Pod", "eBPF Sandboxed", "Anycast Routed", "Zero-Trust Mesh"],
   };
 
   return (
-    <div className="space-y-5">
-      {/* Module Title Card */}
-      <Card className="p-6 bg-[#111522] border-white/[0.08] relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-6 opacity-10">
-          <Layers className="h-40 w-40 text-[#8B5CF6]" />
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="p-6 sm:p-8 rounded-xl bg-white border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <BrandBadge module={details.brand} size="md" />
+          <Badge variant="emerald" size="sm" dot>
+            Architecture Ready
+          </Badge>
+          <Badge variant="blue" size="sm">
+            Integrated Runtime
+          </Badge>
         </div>
 
-        <div className="relative z-10 space-y-3">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <BrandBadge module={details.brand} size="md" />
-            <Badge variant="preview" size="md">
-              Architecture Preview
-            </Badge>
-          </div>
-
-          <h2 className="text-2xl font-bold text-white font-['Space_Grotesk',sans-serif] tracking-tight">
+        <div className="space-y-1.5 max-w-3xl">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Space_Grotesk',sans-serif] tracking-tight">
             {details.title}
           </h2>
-
-          <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
+          <p className="text-sm text-slate-600 leading-relaxed font-sans">
             {details.desc}
           </p>
         </div>
-      </Card>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Core Capabilities */}
-        <Card className="p-5 bg-[#111522] border-white/[0.08]">
-          <h3 className="text-sm font-semibold text-white font-['Space_Grotesk',sans-serif] mb-3 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#8B5CF6]" />
-            Core Architectural Capabilities
-          </h3>
-
-          <ul className="space-y-2.5">
-            {details.features.map((feat, idx) => (
-              <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#22D3EE] mt-1.5 shrink-0" />
-                <span>{feat}</span>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-5 pt-4 border-t border-white/[0.06]">
-            <div className="text-[11px] font-mono uppercase text-slate-500 mb-2 font-semibold">
-              Container Specifications
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {details.runtimeSpecs.map((spec, idx) => (
+      {/* Grid: Capabilities + CLI Terminal */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Capabilities list */}
+        <div className="lg:col-span-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base text-slate-900">
+                Core Architectural Capabilities
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5">
+              {details.features.map((feat, idx) => (
                 <div
                   key={idx}
-                  className="p-2 rounded bg-[#0E121D] border border-white/5 text-[10px] font-mono text-slate-300"
+                  className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-700 font-medium"
                 >
-                  {spec}
+                  <span className="text-[#0066cc] font-bold">✓</span>
+                  <span>{feat}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* CLI & Orchestration Simulator */}
-        <Card className="p-5 bg-[#111522] border-white/[0.08] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-white font-['Space_Grotesk',sans-serif] flex items-center gap-2">
-                <Code2 className="h-4 w-4 text-[#22D3EE]" />
-                CRUCION CLI Interaction Simulation
-              </h3>
-              <span className="text-[10px] font-mono text-slate-500">v2.4.0-preview</span>
-            </div>
+        {/* CLI Terminal Preview */}
+        <div className="lg:col-span-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base text-slate-900 flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-[#0066cc]" />
+                  <span>Interactive Terminal Session</span>
+                </CardTitle>
+                <span className="text-[10px] font-mono text-slate-400">bash / zsh</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg bg-slate-900 p-4 font-mono text-xs text-slate-200 overflow-x-auto shadow-inner leading-relaxed">
+                <pre className="text-sky-300">
+                  <code>{details.cliPreview}</code>
+                </pre>
+              </div>
 
-            <div className="rounded-lg bg-[#080A10] border border-white/10 p-3.5 font-mono text-xs text-slate-300 space-y-1 overflow-x-auto">
-              <pre className="text-[#34D399] leading-relaxed whitespace-pre-wrap">{details.cliPreview}</pre>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">
-              Module available for early container orchestration trials.
-            </span>
-            <Button size="sm" variant="outline">
-              <span>View OCI Spec</span>
-              <ExternalLink className="h-3 w-3 ml-1.5" />
-            </Button>
-          </div>
-        </Card>
+              {/* Hardware / Container Specs */}
+              <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-500">
+                {details.runtimeSpecs.map((spec, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span>{spec}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

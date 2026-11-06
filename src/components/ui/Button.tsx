@@ -22,27 +22,29 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "relative inline-flex items-center justify-center font-medium transition-all duration-200 select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B0D14] disabled:pointer-events-none disabled:opacity-45 rounded-lg active:scale-[0.98]";
+      "relative inline-flex items-center justify-center font-medium transition-all duration-150 select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0284c7] disabled:pointer-events-none disabled:opacity-45 rounded-lg active:scale-[0.98]";
 
     const variantStyles = {
+      // Primary: solid vivid enterprise blue matching GuardScale reference image
       primary:
-        "bg-[#8B5CF6] text-white hover:bg-[#7C3AED] shadow-[0_0_20px_-3px_rgba(139,92,246,0.4)] hover:shadow-[0_0_25px_0_rgba(139,92,246,0.55)] focus-visible:ring-[#8B5CF6]",
+        "bg-[#0066cc] text-white hover:bg-[#0052a3] shadow-sm hover:shadow focus-visible:ring-[#0066cc]",
+      // Secondary: crisp white button with subtle border matching "See how it works" in reference
       secondary:
-        "bg-[#171C2A] text-[#22D3EE] border border-[#22D3EE]/30 hover:bg-[#1E2538] hover:border-[#22D3EE]/60 shadow-[0_0_15px_-4px_rgba(34,211,238,0.25)] focus-visible:ring-[#22D3EE]",
+        "bg-white text-slate-800 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm focus-visible:ring-slate-300",
       outline:
-        "bg-transparent text-slate-200 border border-white/10 hover:bg-white/[0.05] hover:text-white hover:border-white/20 focus-visible:ring-slate-400",
+        "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-slate-300",
       ghost:
-        "bg-transparent text-slate-400 hover:text-slate-100 hover:bg-white/[0.06] focus-visible:ring-slate-400",
+        "bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/75 focus-visible:ring-slate-300",
       emerald:
-        "bg-[#34D399]/15 text-[#34D399] border border-[#34D399]/30 hover:bg-[#34D399]/25 hover:border-[#34D399]/50 focus-visible:ring-[#34D399]",
+        "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 focus-visible:ring-emerald-500",
       danger:
-        "bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 focus-visible:ring-rose-500",
+        "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 focus-visible:ring-rose-500",
     };
 
     const sizeStyles = {
       sm: "h-8 px-3 text-xs gap-1.5",
       md: "h-9.5 px-4 text-sm gap-2",
-      lg: "h-11 px-6 text-base gap-2.5 font-semibold",
+      lg: "h-11 px-6 text-sm sm:text-base gap-2 font-medium",
       icon: "h-9 w-9 p-0",
     };
 

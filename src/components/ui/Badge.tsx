@@ -4,8 +4,7 @@ import { cn } from "@/lib/utils";
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?:
     | "default"
-    | "crucible"
-    | "fusion"
+    | "blue"
     | "emerald"
     | "amber"
     | "rose"
@@ -24,29 +23,23 @@ export function Badge({
   ...props
 }: BadgeProps) {
   const variantStyles = {
-    default: "bg-white/[0.07] text-slate-300 border-white/10",
-    crucible:
-      "bg-[#8B5CF6]/15 text-[#C4B5FD] border-[#8B5CF6]/30 shadow-[0_0_12px_-2px_rgba(139,92,246,0.3)]",
-    fusion:
-      "bg-[#22D3EE]/15 text-[#67E8F9] border-[#22D3EE]/30 shadow-[0_0_12px_-2px_rgba(34,211,238,0.25)]",
-    emerald:
-      "bg-[#34D399]/15 text-[#6EE7B7] border-[#34D399]/30 shadow-[0_0_12px_-2px_rgba(52,211,153,0.25)]",
-    amber: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    rose: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-    outline: "bg-transparent text-slate-400 border-white/15",
-    preview:
-      "bg-gradient-to-r from-[#8B5CF6]/20 to-[#22D3EE]/20 text-[#E0E7FF] border-[#8B5CF6]/40 uppercase tracking-widest text-[9px] font-bold font-mono",
+    default: "bg-slate-100 text-slate-700 border-slate-200",
+    blue: "bg-sky-50 text-[#0284c7] border-sky-200",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    rose: "bg-rose-50 text-rose-700 border-rose-200",
+    outline: "bg-transparent text-slate-600 border-slate-300",
+    preview: "bg-sky-50 text-[#0284c7] border-sky-200 font-mono text-[9px] uppercase tracking-wider font-semibold",
   };
 
   const dotColors = {
     default: "bg-slate-400",
-    crucible: "bg-[#8B5CF6]",
-    fusion: "bg-[#22D3EE]",
-    emerald: "bg-[#34D399]",
-    amber: "bg-amber-400",
-    rose: "bg-rose-400",
+    blue: "bg-[#0284c7]",
+    emerald: "bg-emerald-500",
+    amber: "bg-amber-500",
+    rose: "bg-rose-500",
     outline: "bg-slate-400",
-    preview: "bg-[#22D3EE]",
+    preview: "bg-[#0284c7]",
   };
 
   const sizeStyles = {
@@ -57,7 +50,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 font-medium rounded-full border transition-colors",
+        "inline-flex items-center gap-1.5 font-medium rounded-full border transition-colors select-none",
         variantStyles[variant],
         sizeStyles[size],
         className
@@ -66,9 +59,6 @@ export function Badge({
     >
       {dot && (
         <span className="relative flex h-1.5 w-1.5">
-          {variant === "emerald" && (
-            <span className="animate-radar absolute inline-flex h-full w-full rounded-full bg-[#34D399] opacity-75" />
-          )}
           <span
             className={cn("relative inline-flex rounded-full h-1.5 w-1.5", dotColors[variant])}
           />

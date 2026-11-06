@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
   Server,
   Zap,
 } from "lucide-react";
@@ -20,23 +19,23 @@ import { Card } from "@/components/ui/Card";
 
 export function FeatureShowcase() {
   return (
-    <section id="agent-os" className="py-20 relative space-y-24">
+    <section id="agent-os" className="py-20 bg-slate-50/70 space-y-24 border-b border-slate-100">
       {/* Feature 1: Autonomous AgentOS */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2">
-              <Badge variant="fusion" size="md">
+              <Badge variant="blue" size="md">
                 CRUCION AGENT
               </Badge>
-              <span className="text-xs font-mono text-slate-400">AgentOS Swarm Protocol</span>
+              <span className="text-xs font-mono text-slate-500">AgentOS Swarm Protocol</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-bold text-white font-['Space_Grotesk',sans-serif] tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 font-['Space_Grotesk',sans-serif] tracking-tight">
               Autonomous AI Agents with Direct Container Grounding
             </h2>
 
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
               AgentOS isn’t a superficial chatbot—it is an autonomous engineering workforce. Agents operate directly inside container workspaces, executing cargo commands, analyzing ASTs, fixing bugs, and triggering test suites with strict isolation.
             </p>
 
@@ -45,10 +44,10 @@ export function FeatureShowcase() {
                 "AST-level code comprehension with cross-file symbol indexing",
                 "Subagent delegation for parallelized research and security checks",
                 "Deterministic tool execution loop with automated rollback on test failure",
-                "Multi-model routing (Crucion DeepReason Pro & FastLane Ultra)",
+                "Multi-model routing (Claude 3.7, GPT-4o, Gemini 2.5, local Ollama)",
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
-                  <CheckCircle2 className="h-4 w-4 text-[#34D399] shrink-0" />
+                <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-700">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>{item}</span>
                 </div>
               ))}
@@ -58,133 +57,128 @@ export function FeatureShowcase() {
               <Link href="/dashboard">
                 <Button size="md" variant="secondary">
                   <Bot className="h-4 w-4" />
-                  <span>Inspect Active Swarms</span>
+                  <span>Open AgentOS Console</span>
+                  <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Interactive Agent Terminal Visualizer */}
-          <div className="rounded-2xl bg-[#0B0D14] border border-white/10 shadow-2xl p-5 font-mono text-xs text-slate-300 space-y-3">
-            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+          {/* Interactive Agent Simulation Card */}
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-rose-500/80" />
-                <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-                <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
-                <span className="ml-2 text-slate-400 text-[11px]">agent-os://aethelgard-7@crucion</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="text-xs font-mono font-bold text-slate-900">
+                  Agent Swarm: CrucionBot-742
+                </span>
               </div>
-              <Badge variant="emerald" size="sm" dot>
-                Loop Active
+              <Badge variant="emerald" size="sm">
+                Running in MicroVM
               </Badge>
             </div>
 
-            <div className="space-y-2 text-[11px] leading-relaxed">
-              <p className="text-slate-500">// Task: Refactor eBPF memory buffers in container runtime kernel</p>
-              <p className="text-[#22D3EE]">[15:52:10] AST Indexed: 42 modules, 1,280 symbols parsed in 82ms</p>
-              <p className="text-[#8B5CF6]">[15:52:14] Invoking tool: cargo clippy --all-targets -- -D warnings</p>
-              <p className="text-[#34D399]">[15:52:19] Optimization: Replaced 14 raw pointers with zero-copy RingBufferRef</p>
-              <p className="text-slate-300">[15:52:25] Fuzzing benchmarks: L1 cache miss reduced by 34.2%</p>
-              <p className="text-[#34D399] font-bold">[15:52:29] Verified: All 48 container unit and invariant tests passing</p>
-            </div>
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-xs font-mono text-slate-700">
+                <div className="text-slate-400 text-[10px] uppercase font-semibold">Active Objective</div>
+                <div className="text-slate-900 font-medium mt-1">
+                  Optimize memory layout in eBPF socket listener and run zero-copy tests
+                </div>
+              </div>
 
-            <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between text-[10px] text-slate-400">
-              <span>Token Usage: 142.8k</span>
-              <span>Tools Run: 28</span>
-              <span>Duration: 7m 12s</span>
+              {/* Execution Trace */}
+              <div className="rounded-lg bg-slate-900 p-3.5 text-xs font-mono text-slate-300 space-y-1.5 shadow-inner">
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pb-1 border-b border-slate-800">
+                  <span>Execution Log</span>
+                  <span className="text-emerald-400">Step 3 of 4</span>
+                </div>
+                <div className="text-sky-400">[00:01.2] Indexed 42 AST symbols across 8 modules</div>
+                <div className="text-sky-400">[00:02.8] Applied memory alignment in src/kernel/socket.rs</div>
+                <div className="text-emerald-400">[00:04.1] Cargo test suite passed: 18 passed; 0 failed</div>
+                <div className="text-slate-400 animate-pulse">[00:05.0] Verifying TLS termination latency...</div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-1">
+                <span>Tokens: 1,420</span>
+                <span>Latency: 1.2ms</span>
+                <span className="text-emerald-600 font-medium">State: Verified</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Feature 2: MicroVM Fleet & Zero-Downtime Deployment */}
+      {/* Feature 2: Deployments */}
       <div id="microvm" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column: Visual Metrics Card */}
-          <div className="order-2 lg:order-1 rounded-2xl bg-[#111522] border border-white/[0.08] p-6 lg:p-8 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+          <div className="order-2 lg:order-1 rounded-xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Rocket className="h-5 w-5 text-[#34D399]" />
-                <span className="font-bold text-white text-sm font-['Space_Grotesk',sans-serif]">
-                  CRUCION DEPLOY — Global Canary Mesh
+                <Server className="h-4 w-4 text-[#0066cc]" />
+                <span className="text-xs font-mono font-bold text-slate-900">
+                  Global Canary Traffic Distribution
                 </span>
               </div>
-              <Badge variant="emerald" size="sm">
-                48 POPs Live
+              <Badge variant="blue" size="sm">
+                48 Edge POPs
               </Badge>
             </div>
 
             <div className="space-y-3">
-              {[
-                {
-                  region: "us-east-metal (Virginia)",
-                  env: "Production",
-                  traffic: "100%",
-                  ping: "1.2ms",
-                  status: "Healthy",
-                },
-                {
-                  region: "eu-central-edge (Frankfurt)",
-                  env: "Canary",
-                  traffic: "20%",
-                  ping: "2.1ms",
-                  status: "Synchronized",
-                },
-                {
-                  region: "ap-south-gpu (Mumbai)",
-                  env: "Staging",
-                  traffic: "100%",
-                  ping: "4.6ms",
-                  status: "Healthy",
-                },
-              ].map((cluster, idx) => (
-                <div
-                  key={idx}
-                  className="p-3.5 rounded-xl bg-[#0E121D] border border-white/[0.06] flex items-center justify-between text-xs font-mono"
-                >
-                  <div>
-                    <div className="font-bold text-white">{cluster.region}</div>
-                    <div className="text-[10px] text-slate-400">{cluster.env} • Traffic: {cluster.traffic}</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[#34D399] font-bold">{cluster.ping}</span>
-                    <span className="text-[10px] text-slate-500 block">{cluster.status}</span>
-                  </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-mono">
+                  <span className="text-slate-600">Canary Fleet (v2.1.0)</span>
+                  <span className="text-[#0066cc] font-bold">10%</span>
                 </div>
-              ))}
-            </div>
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-[#0066cc] rounded-full w-[10%]" />
+                </div>
+              </div>
 
-            <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono text-slate-400">
-              <span>Automatic rollback threshold: p99 &gt; 15ms</span>
-              <span className="text-[#34D399]">0 Failovers</span>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs font-mono">
+                  <span className="text-slate-600">Baseline Production Fleet (v2.0.4)</span>
+                  <span className="text-slate-700 font-bold">90%</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-slate-400 rounded-full w-[90%]" />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-800 flex items-center justify-between">
+                <span>Automated Rollback Criteria:</span>
+                <span className="font-bold">Error rate &lt; 0.01%</span>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Copy */}
           <div className="order-1 lg:order-2 space-y-6">
             <div className="inline-flex items-center gap-2">
               <Badge variant="emerald" size="md">
                 CRUCION DEPLOY
               </Badge>
-              <span className="text-xs font-mono text-slate-400">Multi-Cloud MicroVM Fleet</span>
+              <span className="text-xs font-mono text-slate-500">Zero-Downtime Rollouts</span>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-bold text-white font-['Space_Grotesk',sans-serif] tracking-tight">
-              Microsecond Anycast Deployment & Instant Rollback
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 font-['Space_Grotesk',sans-serif] tracking-tight">
+              Instant Global Deployments with Atomic Canary Shifts
             </h2>
 
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              Deploy containers across bare-metal microVM instances worldwide. Canary distributions shift traffic gradually while automated telemetry probes verify error budgets, memory saturation, and p99 latency in real time.
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+              Ship updates in milliseconds without taking traffic down. CRUCION manages fractional traffic shifts, verifies latency heatmaps across worldwide regions, and instantly rolls back if anomalies are detected.
             </p>
 
             <div className="space-y-3 pt-2">
               {[
-                "Firecracker microVM isolation with hardware memory protection",
-                "Automated progressive traffic promotion (10% → 50% → 100%)",
-                "Instant zero-downtime rollbacks if error budget spikes",
-                "Zero-copy socket splicing with Anycast BGP routing",
+                "Anycast routing to the nearest microVM cluster in under 5ms",
+                "Sub-second container warm starts via pre-allocated kernel caches",
+                "Full cryptographic signature verification on every image layer",
+                "Automated SSL/TLS certificate lifecycle management",
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
-                  <CheckCircle2 className="h-4 w-4 text-[#34D399] shrink-0" />
+                <div key={idx} className="flex items-center gap-3 text-xs sm:text-sm text-slate-700">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>{item}</span>
                 </div>
               ))}
@@ -193,8 +187,9 @@ export function FeatureShowcase() {
             <div className="pt-4">
               <Link href="/dashboard">
                 <Button size="md" variant="primary">
-                  <span>Enter Fleet Console</span>
-                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                  <Rocket className="h-4 w-4" />
+                  <span>Inspect Deployment Fleets</span>
+                  <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </Link>
             </div>

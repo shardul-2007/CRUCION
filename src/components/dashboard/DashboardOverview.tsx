@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sparkles,
   ArrowRight,
@@ -8,19 +8,16 @@ import {
   Bot,
   Rocket,
   ShieldCheck,
-  Terminal,
-  Server,
-  Layers,
+  Plus,
+  Plug,
+  ExternalLink,
+  Activity,
 } from "lucide-react";
 import { useCrucionStore } from "@/lib/store";
-import { TelemetryGauges } from "./TelemetryGauges";
-import { ProjectCardsGrid } from "./ProjectCardsGrid";
-import { AgentOSPanel } from "./AgentOSPanel";
-import { DeploymentFleetPanel } from "./DeploymentFleetPanel";
-import { LiveActivityStream } from "./LiveActivityStream";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import Link from "next/link";
 
 export function DashboardOverview() {
   const {
@@ -30,186 +27,290 @@ export function DashboardOverview() {
     agents,
     deployments,
     activeCluster,
+    telemetry,
   } = useCrucionStore();
+
+  const [userName, setUserName] = useState("Architect");
+  const [userOrg, setUserOrg] = useState("Personal Workspace");
+  const [integrationsCount, setIntegrationsCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setUserName(data.user.name || "Architect");
+          setUserOrg(data.user.organization || "Personal Workspace");
+          setIntegrationsCount(data.activeIntegrations || 0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Hero Command Center Header Banner */}
-      <div className="relative rounded-2xl bg-gradient-to-r from-[#171C2A] via-[#111522] to-[#171C2A] border border-white/[0.08] p-6 lg:p-8 overflow-hidden shadow-2xl">
-        {/* Glow Accent Circles */}
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-[#8B5CF6]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-10 w-64 h-64 bg-[#22D3EE]/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="crucible" size="md">
-                CRUCION CORE v2.4.0
-              </Badge>
-              <Badge variant="fusion" size="md">
-                Active Cluster: {activeCluster.split(" ")[0]}
-              </Badge>
-              <Badge variant="emerald" size="md" dot>
-                Global Grid Online
-              </Badge>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight font-['Space_Grotesk',sans-serif]">
-              Engineering Command Center
-            </h1>
-
-            <p className="text-sm text-slate-300 leading-relaxed font-sans">
-              Universal software engineering ecosystem. Multi-agent autonomous swarms, microVM container orchestration, zero-downtime canary pipelines, and edge fabric.
-            </p>
+      {/* 1. Welcome & Account Overview Banner (Clean & Light) */}
+      <div className="rounded-xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-xl">
+          <div className="flex items-center gap-2">
+            <Badge variant="blue" size="sm">
+              {userOrg}
+            </Badge>
+            <Badge variant="emerald" size="sm" dot>
+              {activeCluster.split(" ")[0]} Active
+            </Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={() => setIsNewProjectModalOpen(true)}
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>Forge Project</span>
-            </Button>
-            <Button
-              size="lg"
-              variant="secondary"
-              onClick={() => setActiveNav("agent-os")}
-            >
-              <Bot className="h-4 w-4" />
-              <span>Inspect AgentOS</span>
-            </Button>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-['Space_Grotesk',sans-serif]">
+            Welcome back, {userName}
+          </h1>
+
+          <p className="text-sm text-slate-600 leading-relaxed font-sans">
+            Your unified workspace for microVM container execution, autonomous AgentOS swarms, and zero-downtime edge pipelines.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <Button
+            size="lg"
+            variant="primary"
+            onClick={() => setIsNewProjectModalOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create New Project</span>
+          </Button>
+
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={() => setActiveNav("extension-hub")}
+          >
+            <Plug className="h-4 w-4" />
+            <span>Connected Services</span>
+          </Button>
         </div>
       </div>
 
-      {/* Real-time Telemetry Metrics Gauges */}
-      <TelemetryGauges />
-
-      {/* Main Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2/3 width on desktop): Projects & Agents */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Active Projects Header & Quick Grid */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FolderGit2 className="h-5 w-5 text-[#8B5CF6]" />
-                <h3 className="text-lg font-bold text-white font-['Space_Grotesk',sans-serif]">
-                  Active Workspaces & Projects
-                </h3>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setActiveNav("projects")}
-                className="text-xs text-[#22D3EE] hover:text-[#67E8F9]"
-              >
-                <span>View All ({projects.length})</span>
-                <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </div>
-
-            <ProjectCardsGrid />
+      {/* 2. Key Telemetry & Usage Summary */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="text-[11px] font-mono text-slate-500 uppercase">Active Projects</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1 font-['Space_Grotesk',sans-serif]">
+            {projects.length}
           </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Isolated microVM pods</div>
+        </Card>
 
-          {/* Autonomous AgentOS Swarm */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-[#22D3EE]" />
-                <h3 className="text-lg font-bold text-white font-['Space_Grotesk',sans-serif]">
-                  Autonomous AgentOS Swarms
-                </h3>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setActiveNav("agent-os")}
-                className="text-xs text-[#22D3EE] hover:text-[#67E8F9]"
-              >
-                <span>Full Swarm Telemetry</span>
-                <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </div>
-
-            <AgentOSPanel />
+        <Card className="p-4">
+          <div className="text-[11px] font-mono text-slate-500 uppercase">Connected Services</div>
+          <div className="text-2xl font-bold text-[#0066cc] mt-1 font-['Space_Grotesk',sans-serif]">
+            {integrationsCount > 0 ? `${integrationsCount} Active` : "Setup Required"}
           </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">OpenAI, Gemini, GitHub, etc.</div>
+        </Card>
 
-          {/* Deployments Section */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Rocket className="h-5 w-5 text-[#34D399]" />
-                <h3 className="text-lg font-bold text-white font-['Space_Grotesk',sans-serif]">
-                  MicroVM Container Deployments
-                </h3>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setActiveNav("deployments")}
-                className="text-xs text-[#34D399] hover:text-[#6EE7B7]"
-              >
-                <span>Fleet Overview</span>
-                <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </div>
-
-            <DeploymentFleetPanel />
+        <Card className="p-4">
+          <div className="text-[11px] font-mono text-slate-500 uppercase">p99 Edge Latency</div>
+          <div className="text-2xl font-bold text-emerald-600 mt-1 font-['Space_Grotesk',sans-serif]">
+            {telemetry.p99LatencyMs}ms
           </div>
-        </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Global Anycast routing</div>
+        </Card>
 
-        {/* Right Column (1/3 width on desktop): Live Activity Stream & Security Card */}
-        <div className="space-y-6">
-          {/* CRUCION SHIELD Card */}
-          <Card className="p-5 bg-[#111522] border-white/[0.08] relative overflow-hidden">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-rose-400">
-                <ShieldCheck className="h-5 w-5" />
-                <span className="font-bold text-xs uppercase font-mono tracking-wider">
-                  CRUCION SHIELD
-                </span>
+        <Card className="p-4">
+          <div className="text-[11px] font-mono text-slate-500 uppercase">Agent Swarms</div>
+          <div className="text-2xl font-bold text-sky-600 mt-1 font-['Space_Grotesk',sans-serif]">
+            {agents.filter((a) => a.status === "running").length} Running
+          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Autonomous task loops</div>
+        </Card>
+      </div>
+
+      {/* 3. Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column (8 cols): Recent Projects & Deployment Status */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Recent Projects */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderGit2 className="h-4 w-4 text-[#0066cc]" />
+                  <CardTitle>Recent Projects</CardTitle>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveNav("projects")}
+                  className="text-xs text-[#0066cc]"
+                >
+                  View All ({projects.length})
+                </Button>
               </div>
-              <Badge variant="emerald" size="sm" dot>
-                Zero-Trust Active
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Automated cryptographic SBOM attestations, eBPF sandbox policy verification, and weekly mTLS key rotation.
-            </p>
-            <div className="mt-4 pt-3 border-t border-white/[0.06] grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-400">
-              <div>Vulnerabilities: 0</div>
-              <div>Attestations: 100%</div>
-            </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {projects.slice(0, 3).map((proj) => (
+                <div
+                  key={proj.id}
+                  className="p-4 rounded-lg border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{proj.name}</span>
+                      <Badge variant="blue" size="sm">
+                        {proj.containerRuntime}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-500 line-clamp-1">{proj.description}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 text-xs font-mono">
+                    <span className="text-slate-400">{proj.cluster}</span>
+                    <Badge variant="emerald" size="sm" dot>
+                      Optimal
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
           </Card>
 
-          {/* Live Activity Stream */}
-          <LiveActivityStream />
+          {/* Deployment Status */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Rocket className="h-4 w-4 text-emerald-600" />
+                  <CardTitle>Deployment Status</CardTitle>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveNav("deployments")}
+                  className="text-xs text-emerald-700"
+                >
+                  Fleet Telemetry
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="divide-y divide-slate-100">
+                {deployments.slice(0, 2).map((dep) => (
+                  <div
+                    key={dep.id}
+                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                  >
+                    <div>
+                      <div className="font-medium text-xs text-slate-900 flex items-center gap-2">
+                        <span>{dep.projectName}</span>
+                        <span className="text-slate-400 font-mono text-[10px]">{dep.commitSha}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{dep.commitMsg}</div>
+                    </div>
 
-          {/* Quick System Diagnostics */}
-          <Card className="p-4 bg-[#111522] border-white/[0.08] space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase text-slate-400 font-semibold">
-                Kernel Nodes
-              </span>
-              <span className="text-xs font-mono text-[#34D399]">3/3 Synced</span>
-            </div>
-            <div className="space-y-2 text-xs font-mono text-slate-400">
-              <div className="flex justify-between p-2 rounded bg-[#0E121D]">
-                <span>us-east-metal</span>
-                <span className="text-[#34D399]">Leader (1.2ms)</span>
+                    <div className="flex items-center gap-3 text-xs font-mono">
+                      <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        {dep.latencyMs}ms
+                      </span>
+                      <a
+                        href={dep.liveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#0066cc] hover:underline flex items-center gap-1"
+                      >
+                        <span>Live URL</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between p-2 rounded bg-[#0E121D]">
-                <span>eu-central-edge</span>
-                <span className="text-[#34D399]">Follower (2.1ms)</span>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column (4 cols): AI Providers & Agent Activity */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Connected AI Providers Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plug className="h-4 w-4 text-[#0066cc]" />
+                  <CardTitle>AI Providers</CardTitle>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveNav("extension-hub")}
+                  className="text-xs text-[#0066cc]"
+                >
+                  Manage
+                </Button>
               </div>
-              <div className="flex justify-between p-2 rounded bg-[#0E121D]">
-                <span>ap-south-gpu</span>
-                <span className="text-[#34D399]">Follower (4.6ms)</span>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 rounded-lg border border-slate-100 bg-slate-50/70 space-y-2">
+                <div className="text-xs font-semibold text-slate-900">Supported AI Ecosystem:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-700">
+                    OpenAI
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-700">
+                    Anthropic
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-700">
+                    Google Gemini
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] font-mono text-slate-700">
+                    Ollama
+                  </span>
+                </div>
               </div>
-            </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Connect your official API keys with AES-256-GCM encryption to enable autonomous reasoning loops.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Recent Agent Activity */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-sky-600" />
+                  <CardTitle>Recent Agent Swarms</CardTitle>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setActiveNav("agent-os")}
+                  className="text-xs text-sky-600"
+                >
+                  View Swarms
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {agents.slice(0, 2).map((ag) => (
+                <div
+                  key={ag.id}
+                  className="p-3 rounded-lg border border-slate-100 bg-slate-50/50 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-900">{ag.agentName}</span>
+                    <Badge variant={ag.status === "running" ? "emerald" : "outline"} size="sm">
+                      {ag.status}
+                    </Badge>
+                  </div>
+                  <div className="text-[11px] text-slate-600">{ag.taskTitle}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    Model: {ag.model} · {ag.toolsExecuted} tools executed
+                  </div>
+                </div>
+              ))}
+            </CardContent>
           </Card>
         </div>
       </div>

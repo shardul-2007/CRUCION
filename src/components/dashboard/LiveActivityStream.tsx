@@ -8,7 +8,6 @@ import {
   Hammer,
   ShieldCheck,
   Server,
-  Filter,
 } from "lucide-react";
 import { useCrucionStore } from "@/lib/store";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +21,7 @@ export function LiveActivityStream() {
     { id: "all", label: "All Events" },
     { id: "agent", label: "AgentOS" },
     { id: "deploy", label: "Deployments" },
-    { id: "build", label: "Forge/Build" },
+    { id: "build", label: "Builds" },
     { id: "security", label: "Security" },
   ];
 
@@ -33,15 +32,15 @@ export function LiveActivityStream() {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "agent":
-        return <Bot className="h-4 w-4 text-[#22D3EE]" />;
+        return <Bot className="h-4 w-4 text-sky-600" />;
       case "deploy":
-        return <Rocket className="h-4 w-4 text-[#34D399]" />;
+        return <Rocket className="h-4 w-4 text-emerald-600" />;
       case "build":
-        return <Hammer className="h-4 w-4 text-amber-400" />;
+        return <Hammer className="h-4 w-4 text-amber-600" />;
       case "security":
-        return <ShieldCheck className="h-4 w-4 text-rose-400" />;
+        return <ShieldCheck className="h-4 w-4 text-rose-600" />;
       default:
-        return <Server className="h-4 w-4 text-[#8B5CF6]" />;
+        return <Server className="h-4 w-4 text-[#0066cc]" />;
     }
   };
 
@@ -54,81 +53,67 @@ export function LiveActivityStream() {
       case "fault":
         return <Badge variant="rose" size="sm">Fault</Badge>;
       default:
-        return <Badge variant="fusion" size="sm">Info</Badge>;
+        return <Badge variant="blue" size="sm">Info</Badge>;
     }
   };
 
   return (
-    <Card className="bg-[#111522] border-white/[0.08] overflow-hidden">
-      {/* Header with Filters */}
-      <div className="p-4 border-b border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <Card className="p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-[#8B5CF6]" />
-          <h4 className="font-semibold text-white text-sm font-['Space_Grotesk',sans-serif]">
-            Real-time Execution & Telemetry Log
-          </h4>
+          <Activity className="h-4 w-4 text-[#0066cc]" />
+          <h3 className="font-bold text-xs uppercase font-mono tracking-wider text-slate-800">
+            Live Audit & Event Stream
+          </h3>
         </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {filterOptions.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setFilter(opt.id)}
-              className={`px-2.5 py-1 rounded text-[11px] font-mono transition-colors cursor-pointer ${
-                filter === opt.id
-                  ? "bg-[#8B5CF6]/20 text-white font-medium border border-[#8B5CF6]/40"
-                  : "bg-white/[0.03] text-slate-400 hover:text-white"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <Badge variant="blue" size="sm">
+          {filtered.length} Events
+        </Badge>
       </div>
 
-      {/* Stream list */}
-      <div className="divide-y divide-white/[0.04] max-h-96 overflow-y-auto">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="p-3.5 hover:bg-white/[0.02] transition-colors flex items-start gap-3"
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] font-mono">
+        {filterOptions.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setFilter(opt.id)}
+            className={`px-2.5 py-1 rounded transition-colors whitespace-nowrap cursor-pointer ${
+              filter === opt.id
+                ? "bg-[#0066cc] text-white font-medium"
+                : "bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200/60"
+            }`}
           >
-            <div className="p-2 rounded-lg bg-[#171C2A] border border-white/10 shrink-0 mt-0.5">
-              {getTypeIcon(item.type)}
-            </div>
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-200 text-xs truncate">
-                    {item.title}
-                  </span>
-                  {getSeverityBadge(item.severity)}
-                </div>
-                <span className="text-[10px] text-slate-500 font-mono shrink-0">
-                  {item.timestamp}
+      {/* Events List */}
+      <div className="space-y-2 max-h-96 overflow-y-auto divide-y divide-slate-100 pr-1">
+        {filtered.map((act) => (
+          <div key={act.id} className="pt-2.5 first:pt-0 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {getTypeIcon(act.type)}
+                <span className="font-semibold text-xs text-slate-900 line-clamp-1">
+                  {act.title}
                 </span>
               </div>
+              {getSeverityBadge(act.severity)}
+            </div>
 
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {item.description}
-              </p>
+            <p className="text-[11px] text-slate-500 pl-6 leading-relaxed">
+              {act.description}
+            </p>
 
-              <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono pt-0.5">
-                <span>Actor: {item.actor}</span>
-                <span>•</span>
-                <span className="uppercase">{item.type}</span>
-              </div>
+            <div className="flex items-center justify-between pl-6 text-[10px] text-slate-400 font-mono">
+              <span>Actor: {act.actor}</span>
+              <span>{act.timestamp}</span>
             </div>
           </div>
         ))}
-
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-xs text-slate-500">
-            No events match the selected filter.
-          </div>
-        )}
       </div>
     </Card>
   );

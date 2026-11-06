@@ -3,21 +3,19 @@
 import React, { useState } from "react";
 import {
   FolderGit2,
-  Cpu,
   GitBranch,
   Bot,
   ExternalLink,
   Plus,
   Search,
-  Filter,
-  CheckCircle2,
-  Clock,
+  Trash2,
   HardDrive,
 } from "lucide-react";
 import { useCrucionStore } from "@/lib/store";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { deleteProjectAction } from "@/app/actions/workspace";
 
 export function ProjectCardsGrid() {
   const { projects, setIsNewProjectModalOpen } = useCrucionStore();
@@ -38,10 +36,20 @@ export function ProjectCardsGrid() {
     return matchesSearch && matchesRuntime;
   });
 
+  const handleDeleteProject = async (projectId: string, projectName: string) => {
+    if (!confirm(`Are you sure you want to delete "${projectName}"? This will terminate its microVM container.`)) {
+      return;
+    }
+    const res = await deleteProjectAction(projectId);
+    if (res.success) {
+      window.location.reload();
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Filter and Actions Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#111522] p-3 rounded-xl border border-white/[0.07]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -49,8 +57,8 @@ export function ProjectCardsGrid() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter projects by name, stack, or keyword..."
-            className="w-full bg-[#0E121D] border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-[#8B5CF6]"
+            placeholder="Filter projects by name or stack..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#0066cc]"
           />
         </div>
 
@@ -61,18 +69,18 @@ export function ProjectCardsGrid() {
               key={rt}
               type="button"
               onClick={() => setSelectedRuntime(rt)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-mono whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-xs font-mono transition-all cursor-pointer whitespace-nowrap ${
                 selectedRuntime === rt
-                  ? "bg-[#8B5CF6] text-white font-semibold shadow-[0_0_12px_-2px_rgba(139,92,246,0.5)]"
-                  : "bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08]"
+                  ? "bg-[#0066cc] text-white font-bold"
+                  : "bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/60"
               }`}
             >
-              {rt}
+              {rt.split(" ")[0]}
             </button>
           ))}
         </div>
 
-        {/* Forge Project CTA */}
+        {/* New Project Button */}
         <Button
           size="sm"
           variant="primary"
@@ -80,98 +88,101 @@ export function ProjectCardsGrid() {
           className="shrink-0"
         >
           <Plus className="h-3.5 w-3.5" />
-          <span>Forge Project</span>
+          <span>New Project</span>
         </Button>
       </div>
 
-      {/* Grid of Projects */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredProjects.map((project) => (
-          <Card
-            key={project.id}
-            glow="crucible"
-            className="flex flex-col justify-between group relative overflow-hidden"
+      {/* Projects Grid */}
+      {filteredProjects.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-xl border border-slate-200/80 space-y-3">
+          <FolderGit2 className="h-8 w-8 mx-auto text-slate-300" />
+          <h3 className="font-bold text-slate-700 text-sm">No projects found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            No projects matched your criteria. You can create a new microVM project right now.
+          </p>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => setIsNewProjectModalOpen(true)}
           >
-            {/* Top Container Runtime & Health bar */}
-            <div className="p-4 pb-0 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[#22D3EE] bg-[#22D3EE]/10 border border-[#22D3EE]/30 px-2 py-0.5 rounded">
-                  {project.containerRuntime}
-                </span>
-                <Badge
-                  variant={
-                    project.health === "optimal"
-                      ? "emerald"
-                      : project.health === "degraded"
-                      ? "amber"
-                      : "outline"
-                  }
-                  size="sm"
-                  dot
-                >
-                  {project.health}
-                </Badge>
-              </div>
+            Create Project
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProjects.map((project) => (
+            <Card
+              key={project.id}
+              className="hover:border-slate-300 transition-all flex flex-col justify-between"
+            >
+              <CardHeader className="space-y-2 pb-3">
+                <div className="flex items-center justify-between">
+                  <Badge variant="blue" size="sm">
+                    {project.containerRuntime}
+                  </Badge>
+                  <Badge variant="emerald" size="sm" dot>
+                    {project.health}
+                  </Badge>
+                </div>
 
-              <span className="text-[10px] font-mono text-slate-400">
-                {project.cluster}
-              </span>
-            </div>
-
-            {/* Title & Description */}
-            <div className="p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <FolderGit2 className="h-4 w-4 text-[#8B5CF6] shrink-0" />
-                <h4 className="font-semibold text-white text-sm font-['Space_Grotesk',sans-serif] group-hover:text-[#8B5CF6] transition-colors truncate">
+                <CardTitle className="text-base text-slate-900 truncate">
                   {project.name}
-                </h4>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                {project.description}
-              </p>
-            </div>
+                </CardTitle>
+                <p className="text-xs text-slate-500 line-clamp-2">
+                  {project.description}
+                </p>
+              </CardHeader>
 
-            {/* Tech Stack Pills */}
-            <div className="px-4 flex flex-wrap gap-1.5">
-              {project.stack.map((tech) => (
-                <span
-                  key={tech}
-                  className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-slate-300 border border-white/[0.07]"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
+              <CardContent className="space-y-3 pt-0">
+                {/* Tech Stack Pills */}
+                <div className="flex flex-wrap gap-1">
+                  {project.stack.map((item) => (
+                    <span
+                      key={item}
+                      className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-50 text-slate-700 border border-slate-200/60"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
 
-            {/* Meta & Metrics Footer */}
-            <div className="mt-4 p-4 border-t border-white/[0.06] bg-[#0E121D]/60 flex items-center justify-between text-[11px] font-mono text-slate-400">
-              <div className="flex items-center gap-1.5" title="Git Branch & Commit">
-                <GitBranch className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-slate-300 truncate max-w-[120px]">{project.gitBranch}</span>
-              </div>
+                {/* MicroVM Pod Details */}
+                <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-500">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <HardDrive className="h-3 w-3 text-slate-400" />
+                    <span>{project.cluster}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <GitBranch className="h-3 w-3 text-slate-400" />
+                    <span>{project.gitBranch}</span>
+                  </div>
+                </div>
+              </CardContent>
 
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1 text-[#67E8F9]" title="Assigned Agents">
-                  <Bot className="h-3 w-3" />
-                  {project.agentsAssigned}
-                </span>
-                <span className="flex items-center gap-1 text-slate-500" title="Last Deployed">
-                  <Clock className="h-3 w-3" />
-                  {project.lastDeployed}
-                </span>
-              </div>
-            </div>
-          </Card>
-        ))}
+              <CardFooter className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Bot className="h-3.5 w-3.5 text-[#0066cc]" />
+                  <span>{project.agentsAssigned} agents active</span>
+                </div>
 
-        {filteredProjects.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-[#111522] rounded-xl border border-white/[0.08]">
-            <FolderGit2 className="h-10 w-10 text-slate-600 mx-auto mb-2" />
-            <div className="text-sm text-slate-300 font-medium">No projects match the current filter</div>
-            <p className="text-xs text-slate-500 mt-1">Try refining your search keyword or runtime filter.</p>
-          </div>
-        )}
-      </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(project.id, project.name)}
+                    className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    title="Delete Project"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <Button size="sm" variant="secondary">
+                    <span>Inspect</span>
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

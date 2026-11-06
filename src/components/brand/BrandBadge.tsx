@@ -9,89 +9,93 @@ interface BrandBadgeProps {
 }
 
 export function BrandBadge({ module, className, size = "sm" }: BrandBadgeProps) {
-  // Mapping each CRUCION brand pillar to refined cybernetic color highlights
   const brandStyles: Record<BrandModule, { text: string; bg: string; border: string }> = {
     "CRUCION CORE": {
-      text: "text-[#C4B5FD]",
-      bg: "bg-[#8B5CF6]/10",
-      border: "border-[#8B5CF6]/30",
+      text: "text-[#0066cc]",
+      bg: "bg-sky-50",
+      border: "border-sky-200",
     },
     "CRUCION FORGE": {
-      text: "text-amber-300",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/30",
+      text: "text-amber-700",
+      bg: "bg-amber-50",
+      border: "border-amber-200",
     },
     "CRUCION AGENT": {
-      text: "text-[#67E8F9]",
-      bg: "bg-[#22D3EE]/10",
-      border: "border-[#22D3EE]/30",
+      text: "text-sky-700",
+      bg: "bg-sky-50",
+      border: "border-sky-200",
     },
     "CRUCION SPACE": {
-      text: "text-blue-300",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/30",
+      text: "text-blue-700",
+      bg: "bg-blue-50",
+      border: "border-blue-200",
     },
     "CRUCION DEPLOY": {
-      text: "text-[#6EE7B7]",
-      bg: "bg-[#34D399]/10",
-      border: "border-[#34D399]/30",
+      text: "text-emerald-700",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
     },
     "CRUCION DATA": {
-      text: "text-indigo-300",
-      bg: "bg-indigo-500/10",
-      border: "border-indigo-500/30",
+      text: "text-indigo-700",
+      bg: "bg-indigo-50",
+      border: "border-indigo-200",
     },
     "CRUCION SHIELD": {
-      text: "text-rose-300",
-      bg: "bg-rose-500/10",
-      border: "border-rose-500/30",
+      text: "text-rose-700",
+      bg: "bg-rose-50",
+      border: "border-rose-200",
     },
     "CRUCION FLOW": {
-      text: "text-purple-300",
-      bg: "bg-purple-500/10",
-      border: "border-purple-500/30",
+      text: "text-purple-700",
+      bg: "bg-purple-50",
+      border: "border-purple-200",
     },
     "CRUCION PULSE": {
-      text: "text-emerald-300",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/30",
+      text: "text-emerald-700",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
     },
     "CRUCION CHAIN": {
-      text: "text-orange-300",
-      bg: "bg-orange-500/10",
-      border: "border-orange-500/30",
+      text: "text-orange-700",
+      bg: "bg-orange-50",
+      border: "border-orange-200",
     },
     "CRUCION HUB": {
-      text: "text-teal-300",
-      bg: "bg-teal-500/10",
-      border: "border-teal-500/30",
+      text: "text-teal-700",
+      bg: "bg-teal-50",
+      border: "border-teal-200",
     },
     "CRUCION TRUST": {
-      text: "text-sky-300",
-      bg: "bg-sky-500/10",
-      border: "border-sky-500/30",
+      text: "text-sky-700",
+      bg: "bg-sky-50",
+      border: "border-sky-200",
     },
   };
 
-  const style = brandStyles[module] || brandStyles["CRUCION CORE"];
+  const style = brandStyles[module] || {
+    text: "text-slate-700",
+    bg: "bg-slate-50",
+    border: "border-slate-200",
+  };
 
-  const sizeClasses = {
-    sm: "px-2 py-0.5 text-[9px]",
-    md: "px-2.5 py-1 text-[11px]",
+  const sizeStyles = {
+    sm: "px-2 py-0.5 text-[10px]",
+    md: "px-2.5 py-1 text-xs",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center font-mono font-semibold tracking-wider uppercase rounded border",
+        "inline-flex items-center gap-1.5 font-mono font-bold tracking-wider rounded border select-none",
         style.text,
         style.bg,
         style.border,
-        sizeClasses[size],
+        sizeStyles[size],
         className
       )}
     >
-      {module}
+      <span className="h-1 w-1 rounded-full bg-current opacity-80" />
+      <span>{module}</span>
     </span>
   );
 }

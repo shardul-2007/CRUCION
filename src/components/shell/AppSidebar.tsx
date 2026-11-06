@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import {
   LayoutDashboard,
   FolderGit2,
@@ -25,6 +24,7 @@ import {
   Plus,
   Radio,
   X,
+  Plug,
 } from "lucide-react";
 import { useCrucionStore } from "@/lib/store";
 import { NAVIGATION_ITEMS } from "@/lib/mock-data";
@@ -32,7 +32,6 @@ import { NavItemId } from "@/types";
 import { CrucionLogo } from "@/components/brand/CrucionLogo";
 import { cn } from "@/lib/utils";
 
-// Icon lookup map
 const ICON_COMPONENTS: Record<string, React.ElementType> = {
   LayoutDashboard,
   FolderGit2,
@@ -51,6 +50,7 @@ const ICON_COMPONENTS: Record<string, React.ElementType> = {
   PackagePlus,
   Building2,
   Sliders,
+  Plug,
 };
 
 export function AppSidebar() {
@@ -73,13 +73,11 @@ export function AppSidebar() {
   };
 
   const renderNavContent = () => (
-    <div className="flex flex-col h-full bg-[#111522] border-r border-white/[0.08] select-none">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 select-none">
       {/* Top Header / Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-white/[0.06] shrink-0">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
         {!isSidebarCollapsed ? (
-          <div className="flex items-center gap-3">
-            <CrucionLogo size="sm" showMotto={false} asLink={true} />
-          </div>
+          <CrucionLogo size="sm" showMotto={false} asLink={true} />
         ) : (
           <div className="mx-auto">
             <CrucionLogo size="sm" showMotto={false} asLink={true} className="gap-0" />
@@ -90,7 +88,7 @@ export function AppSidebar() {
         <button
           type="button"
           onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-          className="hidden md:flex items-center justify-center h-7 w-7 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+          className="hidden md:flex items-center justify-center h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -100,30 +98,30 @@ export function AppSidebar() {
         <button
           type="button"
           onClick={() => setIsMobileSidebarOpen(false)}
-          className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08]"
+          className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Quick Action: New Project Forge */}
-      <div className="p-3 border-b border-white/[0.06] shrink-0">
+      <div className="p-3 border-b border-slate-100 shrink-0">
         <button
           type="button"
           onClick={() => setIsNewProjectModalOpen(true)}
           className={cn(
-            "w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED] hover:from-[#9061fa] hover:to-[#843df7] text-white font-medium text-xs py-2 px-3 shadow-[0_0_15px_-3px_rgba(139,92,246,0.4)] transition-all cursor-pointer active:scale-98",
+            "w-full flex items-center justify-center gap-2 rounded-lg bg-[#0066cc] hover:bg-[#0052a3] text-white font-medium text-xs py-2 px-3 shadow-sm transition-all cursor-pointer active:scale-98",
             isSidebarCollapsed && "px-0"
           )}
-          title="Scaffold New Project (Project Forge)"
+          title="Scaffold New Project"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          {!isSidebarCollapsed && <span>Forge New Project</span>}
+          {!isSidebarCollapsed && <span>New Project</span>}
         </button>
       </div>
 
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-6">
+      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
         {categories.map((cat) => {
           const items = NAVIGATION_ITEMS.filter((item) => item.category === cat);
           if (items.length === 0) return null;
@@ -131,7 +129,7 @@ export function AppSidebar() {
           return (
             <div key={cat} className="space-y-1">
               {!isSidebarCollapsed && (
-                <div className="px-3 pb-1 text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold">
+                <div className="px-3 pb-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
                   {cat}
                 </div>
               )}
@@ -148,22 +146,17 @@ export function AppSidebar() {
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all group relative cursor-pointer",
                       isActive
-                        ? "bg-[#8B5CF6]/15 text-white border border-[#8B5CF6]/40 shadow-[0_0_15px_-4px_rgba(139,92,246,0.3)]"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent",
+                        ? "bg-sky-50 text-[#0066cc] border border-sky-200/90 font-semibold"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent",
                       isSidebarCollapsed && "justify-center px-0"
                     )}
                   >
-                    {/* Active accent pill */}
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-1 rounded-r bg-[#8B5CF6] shadow-[0_0_8px_#8B5CF6]" />
-                    )}
-
                     <Icon
                       className={cn(
                         "h-4 w-4 shrink-0 transition-colors",
                         isActive
-                          ? "text-[#8B5CF6]"
-                          : "text-slate-400 group-hover:text-slate-200"
+                          ? "text-[#0066cc]"
+                          : "text-slate-400 group-hover:text-slate-700"
                       )}
                     />
 
@@ -174,11 +167,9 @@ export function AppSidebar() {
                           <span
                             className={cn(
                               "text-[9px] px-1.5 py-0.5 rounded font-mono font-medium tracking-tight border shrink-0 ml-1.5",
-                              item.isPreview
-                                ? "bg-[#22D3EE]/10 text-[#67E8F9] border-[#22D3EE]/30"
-                                : isActive
-                                ? "bg-[#8B5CF6]/20 text-[#C4B5FD] border-[#8B5CF6]/40"
-                                : "bg-white/[0.06] text-slate-400 border-white/[0.08]"
+                              isActive
+                                ? "bg-sky-100 text-[#0066cc] border-sky-200"
+                                : "bg-slate-100 text-slate-600 border-slate-200"
                             )}
                           >
                             {item.badge}
@@ -195,15 +186,15 @@ export function AppSidebar() {
       </div>
 
       {/* Footer System Telemetry Summary */}
-      <div className="p-3 border-t border-white/[0.06] bg-[#0E121D] shrink-0">
+      <div className="p-3 border-t border-slate-100 bg-slate-50/70 shrink-0">
         {!isSidebarCollapsed ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="flex items-center gap-1.5 text-slate-400 font-mono">
-                <Radio className="h-3 w-3 text-[#34D399] animate-pulse" />
+              <span className="flex items-center gap-1.5 text-slate-600 font-mono">
+                <Radio className="h-3 w-3 text-emerald-600 animate-pulse" />
                 CRUCION CORE
               </span>
-              <span className="text-[#34D399] font-mono text-[10px] font-bold">
+              <span className="text-emerald-700 font-mono text-[10px] font-bold">
                 {telemetry.clusterState}
               </span>
             </div>
@@ -213,11 +204,8 @@ export function AppSidebar() {
             </div>
           </div>
         ) : (
-          <div className="flex justify-center" title="Container Kernel Status: Optimal">
-            <div className="relative flex h-3 w-3">
-              <span className="animate-radar absolute inline-flex h-full w-full rounded-full bg-[#34D399] opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#34D399]" />
-            </div>
+          <div className="flex justify-center" title="Optimal">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
           </div>
         )}
       </div>
@@ -226,24 +214,23 @@ export function AppSidebar() {
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col transition-all duration-300 z-30 shrink-0",
+          "hidden md:flex flex-col transition-all duration-200 z-30 shrink-0",
           isSidebarCollapsed ? "w-16" : "w-64"
         )}
       >
         {renderNavContent()}
       </aside>
 
-      {/* Mobile Slide-over Drawer */}
+      {/* Mobile Drawer */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
-          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          <div className="relative w-72 max-w-[85vw] h-full shadow-xl z-10 animate-in slide-in-from-left duration-150">
             {renderNavContent()}
           </div>
         </div>
