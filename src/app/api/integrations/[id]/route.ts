@@ -10,9 +10,9 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  db.integrations.delete(id, user.id);
+  await db.integrations.delete(id, user.id);
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     action: "API_INTEGRATION_DELETED",
     details: { integrationId: id },

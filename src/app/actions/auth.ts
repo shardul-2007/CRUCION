@@ -22,9 +22,10 @@ export async function signup(
   formData: FormData
 ): Promise<SignupFormState> {
   const email = (formData.get("email") as string) || "";
-  
-  // Rate limit by email / IP
-  const rateLimit = checkRateLimit(`signup_${email.toLowerCase()}`, 5, 60);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Rate limit by email
+  const rateLimit = checkRateLimit(`signup_${normalizedEmail}`, 5, 60);
   if (!rateLimit.allowed) {
     return {
       message: `Too many registration attempts. Please wait ${rateLimit.retryAfterSeconds} seconds.`,
@@ -45,7 +46,7 @@ export async function signup(
   const { name, password, organization } = validated.data;
 
   try {
-    const existing = db.users.findByEmail(email);
+    const existing = await db.users.findByEmail(normalizedEmail);
     if (existing) {
       return {
         message: "An account with this email address already exists. Please sign in.",
@@ -53,8 +54,8 @@ export async function signup(
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const { user, organization: org } = db.users.create({
-      email,
+    const { user, organization: org } = await db.users.create({
+      email: normalizedEmail,
       name,
       passwordHash,
       organizationName: organization,
@@ -63,10 +64,10 @@ export async function signup(
     // Generate email verification token
     const verificationToken = generateSecureToken(24);
     const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    db.users.setVerificationToken(user.id, verificationToken, verificationExpiry);
+    await db.users.setVerificationToken(user.id, verificationToken, verificationExpiry);
 
     // Audit log
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       organizationId: org.id,
       action: "AUTH_REGISTER",
@@ -80,7 +81,7 @@ export async function signup(
       name: user.name,
       role: user.role,
       organization: org.name,
-      avatarInitials: user.avatarInitials,
+      avatarInitials: user.avatarInitials || "CR",
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Registration failed";
@@ -95,9 +96,10 @@ export async function signin(
   formData: FormData
 ): Promise<SigninFormState> {
   const email = (formData.get("email") as string) || "";
+  const normalizedEmail = email.toLowerCase().trim();
 
   // Rate limiting to prevent brute-force attacks
-  const rateLimit = checkRateLimit(`login_${email.toLowerCase()}`, 6, 60);
+  const rateLimit = checkRateLimit(`login_${normalizedEmail}`, 6, 60);
   if (!rateLimit.allowed) {
     return {
       message: `Too many sign-in attempts. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
@@ -116,7 +118,7 @@ export async function signin(
   const { password } = validated.data;
 
   try {
-    const user = db.users.findByEmail(email);
+    const user = await db.users.findByEmail(normalizedEmail);
     if (!user) {
       return {
         message: "Invalid credentials. Please verify your email and password.",
@@ -125,21 +127,21 @@ export async function signin(
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      db.auditLogs.record({
+      await db.auditLogs.record({
         userId: user.id,
         action: "AUTH_LOGIN_FAILED",
-        details: { email, reason: "invalid_password" },
+        details: { email: normalizedEmail, reason: "invalid_password" },
       });
       return {
         message: "Invalid credentials. Please verify your email and password.",
       };
     }
 
-    db.users.updateLastLogin(user.id);
-    const orgs = db.organizations.getUserOrganizations(user.id);
-    const primaryOrg = orgs[0]?.organization?.name || "Personal Workspace";
+    await db.users.updateLastLogin(user.id);
+    const orgs = await db.organizations.getUserOrganizations(user.id);
+    const primaryOrg = orgs[0]?.name || "Personal Workspace";
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       action: "AUTH_LOGIN_SUCCESS",
       details: { email: user.email },
@@ -151,7 +153,7 @@ export async function signin(
       name: user.name,
       role: user.role,
       organization: primaryOrg,
-      avatarInitials: user.avatarInitials,
+      avatarInitials: user.avatarInitials || "CR",
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Sign-in error occurred";
@@ -164,7 +166,7 @@ export async function signin(
 export async function signout(): Promise<void> {
   const user = await getCurrentUser();
   if (user) {
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       action: "AUTH_LOGOUT",
       details: { email: user.email },
@@ -185,7 +187,7 @@ export async function forgotPassword(formData: FormData): Promise<ActionResponse
     };
   }
 
-  const user = db.users.findByEmail(email);
+  const user = await db.users.findByEmail(email);
   if (!user) {
     // Return generic success to prevent email enumeration
     return {
@@ -196,9 +198,9 @@ export async function forgotPassword(formData: FormData): Promise<ActionResponse
 
   const resetToken = generateSecureToken(32);
   const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-  db.users.setResetToken(email, resetToken, expiry);
+  await db.users.setResetToken(email, resetToken, expiry);
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     action: "AUTH_PASSWORD_RESET_REQUESTED",
     details: { email },
@@ -224,7 +226,7 @@ export async function resetPassword(formData: FormData): Promise<ActionResponse>
     };
   }
 
-  const user = db.users.findByResetToken(token);
+  const user = await db.users.findByResetToken(token);
   if (!user) {
     return {
       success: false,
@@ -233,9 +235,9 @@ export async function resetPassword(formData: FormData): Promise<ActionResponse>
   }
 
   const newHash = await bcrypt.hash(password, 12);
-  db.users.updatePassword(user.id, newHash);
+  await db.users.updatePassword(user.id, newHash);
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     action: "AUTH_PASSWORD_RESET_COMPLETED",
     details: { email: user.email },
@@ -248,7 +250,7 @@ export async function resetPassword(formData: FormData): Promise<ActionResponse>
 }
 
 export async function verifyEmail(token: string): Promise<ActionResponse> {
-  const user = db.users.findByVerificationToken(token);
+  const user = await db.users.findByVerificationToken(token);
   if (!user) {
     return {
       success: false,
@@ -256,8 +258,8 @@ export async function verifyEmail(token: string): Promise<ActionResponse> {
     };
   }
 
-  db.users.verifyEmail(user.id);
-  db.auditLogs.record({
+  await db.users.verifyEmail(user.id);
+  await db.auditLogs.record({
     userId: user.id,
     action: "AUTH_EMAIL_VERIFIED",
     details: { email: user.email },
@@ -286,8 +288,8 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
     };
   }
 
-  db.users.updateProfile(user.id, { name });
-  db.auditLogs.record({
+  await db.users.updateProfile(user.id, { name });
+  await db.auditLogs.record({
     userId: user.id,
     action: "USER_PROFILE_UPDATED",
     details: { name },
@@ -317,7 +319,7 @@ export async function changePassword(formData: FormData): Promise<ActionResponse
     };
   }
 
-  const storedUser = db.users.findById(user.id);
+  const storedUser = await db.users.findById(user.id);
   if (!storedUser) {
     return { success: false, message: "User record not found." };
   }
@@ -328,9 +330,9 @@ export async function changePassword(formData: FormData): Promise<ActionResponse
   }
 
   const newHash = await bcrypt.hash(newPassword, 12);
-  db.users.updatePassword(user.id, newHash);
+  await db.users.updatePassword(user.id, newHash);
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     action: "AUTH_PASSWORD_CHANGED",
     details: { email: user.email },
@@ -355,13 +357,13 @@ export async function deleteAccount(confirmationText: string): Promise<ActionRes
     };
   }
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     action: "USER_ACCOUNT_DELETED",
     details: { email: user.email },
   });
 
-  db.users.deleteAccount(user.id);
+  await db.users.deleteAccount(user.id);
   await deleteSession();
 
   return {

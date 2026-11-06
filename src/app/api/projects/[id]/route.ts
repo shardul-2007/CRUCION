@@ -10,17 +10,17 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = db.projects.findById(id);
+  const project = await db.projects.findById(id);
   if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
   // Authorization check
-  const userProjects = db.projects.listForUser(user.id);
+  const userProjects = await db.projects.listForUser(user.id);
   if (!userProjects.some((p) => p.id === id)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const agentRuns = db.agentRuns.listForProject(id);
-  const deployments = db.deployments.listForProject(id);
+  const agentRuns = await db.agentRuns.listForProject(id);
+  const deployments = await db.deployments.listForProject(id);
 
   return NextResponse.json({ project, agentRuns, deployments });
 }
@@ -33,7 +33,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = db.projects.findById(id);
+  const project = await db.projects.findById(id);
   if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
   // Only owner or admin can update
@@ -43,9 +43,9 @@ export async function PATCH(
 
   try {
     const body = await req.json();
-    const updated = db.projects.update(id, body);
+    const updated = await db.projects.update(id, body);
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       projectId: id,
       action: "API_PROJECT_UPDATED",
@@ -67,15 +67,15 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = db.projects.findById(id);
+  const project = await db.projects.findById(id);
   if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
   if (project.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "SUPERADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  db.projects.delete(id);
-  db.auditLogs.record({
+  await db.projects.delete(id);
+  await db.auditLogs.record({
     userId: user.id,
     projectId: id,
     action: "API_PROJECT_DELETED",

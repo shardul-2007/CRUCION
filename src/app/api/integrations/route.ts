@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { db } from "@/lib/db";
+import { db, IntegrationProvider } from "@/lib/db";
 import { UpsertIntegrationSchema } from "@/lib/auth-definitions";
 
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const integrations = db.integrations.listForUser(user.id);
+  const integrations = await db.integrations.listForUser(user.id);
   return NextResponse.json({ integrations });
 }
 
@@ -26,18 +26,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const orgs = db.organizations.getUserOrganizations(user.id);
-    const orgId = orgs[0]?.organization?.id;
+    const orgs = await db.organizations.getUserOrganizations(user.id);
+    const orgId = orgs[0]?.id;
 
-    const integration = db.integrations.upsert({
+    const integration = await db.integrations.upsert({
       userId: user.id,
       organizationId: orgId,
-      provider: validated.data.provider,
+      provider: validated.data.provider as IntegrationProvider,
       name: validated.data.name,
-      secretKey: validated.data.secretKey,
+      secret: validated.data.secretKey,
     });
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       action: "API_INTEGRATION_SAVED",
       details: { provider: validated.data.provider, name: validated.data.name },

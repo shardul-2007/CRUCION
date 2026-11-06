@@ -6,7 +6,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const orgs = db.organizations.getUserOrganizations(user.id);
+  const orgs = await db.organizations.getUserOrganizations(user.id);
   return NextResponse.json({ organizations: orgs });
 }
 
@@ -21,13 +21,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name must be at least 2 characters" }, { status: 400 });
     }
 
-    const org = db.organizations.create({
+    const org = await db.organizations.create({
       name,
       userId: user.id,
       description: body.description,
     });
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       organizationId: org.id,
       action: "API_ORG_CREATED",

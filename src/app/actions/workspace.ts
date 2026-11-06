@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/session";
-import { db } from "@/lib/db";
+import { db, IntegrationProvider, OrgRole } from "@/lib/db";
 import {
   CreateProjectSchema,
   UpsertIntegrationSchema,
@@ -33,13 +33,13 @@ export async function createProjectAction(formData: FormData): Promise<ActionRes
     };
   }
 
-  const orgs = db.organizations.getUserOrganizations(user.id);
-  const orgId = orgs[0]?.organization?.id;
+  const orgs = await db.organizations.getUserOrganizations(user.id);
+  const orgId = orgs[0]?.id;
   if (!orgId) {
     return { success: false, message: "No active organization found." };
   }
 
-  const project = db.projects.create({
+  const project = await db.projects.create({
     name: validated.data.name,
     description: validated.data.description,
     organizationId: orgId,
@@ -49,7 +49,7 @@ export async function createProjectAction(formData: FormData): Promise<ActionRes
     gitRepoUrl: validated.data.gitRepoUrl,
   });
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     organizationId: orgId,
     projectId: project.id,
@@ -69,7 +69,7 @@ export async function deleteProjectAction(projectId: string): Promise<ActionResp
   const user = await getCurrentUser();
   if (!user) return { success: false, message: "Unauthorized." };
 
-  const project = db.projects.findById(projectId);
+  const project = await db.projects.findById(projectId);
   if (!project) return { success: false, message: "Project not found." };
 
   // Authorization check: only owner or org admin can delete
@@ -77,8 +77,8 @@ export async function deleteProjectAction(projectId: string): Promise<ActionResp
     return { success: false, message: "Permission denied. Only the project owner can delete this project." };
   }
 
-  db.projects.delete(projectId);
-  db.auditLogs.record({
+  await db.projects.delete(projectId);
+  await db.auditLogs.record({
     userId: user.id,
     organizationId: project.organizationId,
     projectId: project.id,
@@ -104,13 +104,13 @@ export async function createOrganizationAction(formData: FormData): Promise<Acti
     return { success: false, message: "Organization name must be at least 2 characters." };
   }
 
-  const org = db.organizations.create({
+  const org = await db.organizations.create({
     name,
     userId: user.id,
     description,
   });
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     organizationId: org.id,
     action: "ORG_CREATED",
@@ -136,13 +136,13 @@ export async function inviteOrgMemberAction(formData: FormData): Promise<ActionR
   }
 
   try {
-    const member = db.organizations.addMember({
+    const member = await db.organizations.addMember({
       organizationId: orgId,
-      email: validated.data.email,
-      role: validated.data.role,
+      invitedEmail: validated.data.email,
+      role: (validated.data.role as OrgRole) || OrgRole.MEMBER,
     });
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       organizationId: orgId,
       action: "ORG_MEMBER_INVITED",
@@ -160,8 +160,8 @@ export async function removeOrgMemberAction(orgId: string, memberId: string): Pr
   const user = await getCurrentUser();
   if (!user) return { success: false, message: "Unauthorized." };
 
-  db.organizations.removeMember(orgId, memberId);
-  db.auditLogs.record({
+  await db.organizations.removeMember(orgId, memberId);
+  await db.auditLogs.record({
     userId: user.id,
     organizationId: orgId,
     action: "ORG_MEMBER_REMOVED",
@@ -194,18 +194,18 @@ export async function upsertIntegrationAction(formData: FormData): Promise<Actio
   }
 
   const { provider, name, secretKey } = validated.data;
-  const orgs = db.organizations.getUserOrganizations(user.id);
-  const orgId = orgs[0]?.organization?.id;
+  const orgs = await db.organizations.getUserOrganizations(user.id);
+  const orgId = orgs[0]?.id;
 
-  const result = db.integrations.upsert({
+  const result = await db.integrations.upsert({
     userId: user.id,
     organizationId: orgId,
-    provider,
+    provider: provider as IntegrationProvider,
     name,
-    secretKey,
+    secret: secretKey,
   });
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     organizationId: orgId,
     action: "INTEGRATION_CONFIGURED",
@@ -224,8 +224,8 @@ export async function deleteIntegrationAction(integrationId: string): Promise<Ac
   const user = await getCurrentUser();
   if (!user) return { success: false, message: "Unauthorized." };
 
-  db.integrations.delete(integrationId, user.id);
-  db.auditLogs.record({
+  await db.integrations.delete(integrationId, user.id);
+  await db.auditLogs.record({
     userId: user.id,
     action: "INTEGRATION_DISCONNECTED",
     details: { integrationId },
@@ -247,18 +247,18 @@ export async function dispatchAgentAction(params: {
   const user = await getCurrentUser();
   if (!user) return { success: false, message: "Unauthorized." };
 
-  const project = db.projects.findById(params.projectId);
+  const project = await db.projects.findById(params.projectId);
   if (!project) return { success: false, message: "Project not found." };
 
   // Check if provider key is configured
-  let provider = "OPENAI";
-  if (params.model.toLowerCase().includes("claude")) provider = "ANTHROPIC";
-  else if (params.model.toLowerCase().includes("gemini")) provider = "GOOGLE_GEMINI";
-  else if (params.model.toLowerCase().includes("ollama")) provider = "OLLAMA";
+  let provider: IntegrationProvider = IntegrationProvider.OPENAI;
+  if (params.model.toLowerCase().includes("claude")) provider = IntegrationProvider.ANTHROPIC;
+  else if (params.model.toLowerCase().includes("gemini")) provider = IntegrationProvider.GOOGLE_GEMINI;
+  else if (params.model.toLowerCase().includes("ollama")) provider = IntegrationProvider.OLLAMA;
 
-  const keyConfigured = db.integrations.getKeyForProvider(user.id, provider);
+  const keyConfigured = await db.integrations.getKeyForProvider(user.id, provider);
 
-  const run = db.agentRuns.create({
+  const run = await db.agentRuns.create({
     projectId: params.projectId,
     userId: user.id,
     agentName: `CrucionBot-${Math.floor(100 + Math.random() * 900)}`,
@@ -267,7 +267,7 @@ export async function dispatchAgentAction(params: {
     model: params.model,
   });
 
-  db.auditLogs.record({
+  await db.auditLogs.record({
     userId: user.id,
     projectId: params.projectId,
     action: "AGENT_DISPATCHED",

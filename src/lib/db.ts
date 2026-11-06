@@ -1,948 +1,833 @@
-import fs from "fs";
-import path from "path";
-import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  PrismaClient,
+  User,
+  Session,
+  Organization,
+  OrganizationMember,
+  Project,
+  ProjectMember,
+  Integration,
+  AuditLog,
+  AgentRun,
+  Deployment,
+  UserRole,
+  OrgRole,
+  OrgPlan,
+  MemberStatus,
+  ProjectRole,
+  ProjectStatus,
+  ProjectHealth,
+  IntegrationProvider,
+  IntegrationStatus,
+  AgentStatus,
+  DeploymentStatus,
+} from "@prisma/client";
 import { encryptSecret, decryptSecret, createKeyHint } from "./crypto";
 
-// Lazy Prisma Client initialization for environments with PostgreSQL adapter configured
-let prismaInstance: PrismaClient | null = null;
+// Export Prisma models & enums for strong type safety
+export type {
+  User,
+  Session,
+  Organization,
+  OrganizationMember,
+  Project,
+  ProjectMember,
+  Integration,
+  AuditLog,
+  AgentRun,
+  Deployment,
+};
+export {
+  UserRole,
+  OrgRole,
+  OrgPlan,
+  MemberStatus,
+  ProjectRole,
+  ProjectStatus,
+  ProjectHealth,
+  IntegrationProvider,
+  IntegrationStatus,
+  AgentStatus,
+  DeploymentStatus,
+};
 
-export function getPrismaClient(): PrismaClient | null {
-  if (prismaInstance) return prismaInstance;
-  if (!process.env.DATABASE_URL) return null;
+// Global singleton pattern to avoid connection exhaustion in serverless environments
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+  pgPool: Pool | undefined;
+};
 
+function sanitizeDatabaseUrl(rawUrl: string): string {
   try {
-    // When DATABASE_URL is configured, instantiate PrismaClient
-    prismaInstance = new PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
-    });
-    return prismaInstance;
+    const parsed = new URL(rawUrl);
+    parsed.searchParams.delete("channel_binding");
+    if (!parsed.searchParams.has("sslmode")) {
+      parsed.searchParams.set("sslmode", "require");
+    }
+    return parsed.toString();
   } catch {
-    return null;
+    return rawUrl;
   }
 }
 
-// --- Persistent storage engine ---
-const JSON_DB_PATH = path.join(process.cwd(), "crucion-data.json");
-
-export interface StoredUser {
-  id: string;
-  email: string;
-  name: string;
-  passwordHash: string;
-  role: "USER" | "ADMIN" | "SUPERADMIN";
-  avatarInitials: string;
-  avatarUrl?: string;
-  emailVerified: boolean;
-  verificationToken?: string;
-  verificationTokenExpiry?: string;
-  resetToken?: string;
-  resetTokenExpiry?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  lastLoginAt?: string;
-}
-
-export interface StoredSession {
-  id: string;
-  userId: string;
-  token: string;
-  ipAddress?: string;
-  userAgent?: string;
-  expiresAt: string;
-  createdAt: string;
-}
-
-export interface StoredOrg {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  plan: "FREE" | "PRO" | "ENTERPRISE";
-  logoUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StoredOrgMember {
-  id: string;
-  organizationId: string;
-  userId?: string;
-  invitedEmail?: string;
-  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
-  status: "ACTIVE" | "INVITED" | "SUSPENDED";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StoredProject {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  organizationId: string;
-  ownerId: string;
-  containerRuntime: string;
-  gitRepoUrl?: string;
-  gitBranch: string;
-  status: "ACTIVE" | "BUILDING" | "DEPLOYED" | "IDLE" | "ERROR";
-  health: "OPTIMAL" | "DEGRADED" | "STANDBY";
-  cluster: string;
-  liveUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-  lastDeployedAt?: string;
-}
-
-export interface StoredProjectMember {
-  id: string;
-  projectId: string;
-  userId: string;
-  role: "LEAD" | "DEVELOPER" | "VIEWER";
-  createdAt: string;
-}
-
-export interface StoredIntegration {
-  id: string;
-  userId: string;
-  organizationId?: string;
-  provider: string;
-  name: string;
-  encryptedSecret: string;
-  keyHint: string;
-  status: "ACTIVE" | "ERROR" | "DISCONNECTED";
-  lastValidatedAt?: string;
-  configJson?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StoredAuditLog {
-  id: string;
-  organizationId?: string;
-  projectId?: string;
-  userId?: string;
-  action: string;
-  details?: string;
-  ipAddress?: string;
-  userAgent?: string;
-  createdAt: string;
-}
-
-export interface StoredAgentRun {
-  id: string;
-  projectId: string;
-  userId: string;
-  agentName: string;
-  role: string;
-  taskTitle: string;
-  status: "RUNNING" | "IDLE" | "EXECUTING_TOOL" | "COMPLETED" | "ERROR";
-  model: string;
-  tokenUsage: number;
-  toolsExecuted: number;
-  durationSeconds: number;
-  currentAction?: string;
-  logsJson?: string;
-  startedAt: string;
-  completedAt?: string;
-}
-
-export interface StoredDeployment {
-  id: string;
-  projectId: string;
-  environment: string;
-  commitSha: string;
-  commitMsg: string;
-  status: "LIVE" | "ROLLING_UPDATE" | "CANARY" | "FAILED";
-  latencyMs: number;
-  region: string;
-  liveUrl: string;
-  deployedAt: string;
-}
-
-interface DatabaseSchema {
-  users: StoredUser[];
-  sessions: StoredSession[];
-  organizations: StoredOrg[];
-  orgMembers: StoredOrgMember[];
-  projects: StoredProject[];
-  projectMembers: StoredProjectMember[];
-  integrations: StoredIntegration[];
-  auditLogs: StoredAuditLog[];
-  agentRuns: StoredAgentRun[];
-  deployments: StoredDeployment[];
-}
-
-function initialData(): DatabaseSchema {
-  return {
-    users: [],
-    sessions: [],
-    organizations: [],
-    orgMembers: [],
-    projects: [],
-    projectMembers: [],
-    integrations: [],
-    auditLogs: [],
-    agentRuns: [],
-    deployments: [],
-  };
-}
-
-class JsonStorage {
-  private filePath: string;
-
-  constructor(filePath: string) {
-    this.filePath = filePath;
-    this.ensureInitialized();
+export function getPrisma(): PrismaClient {
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma;
   }
 
-  private ensureInitialized() {
-    try {
-      if (!fs.existsSync(this.filePath)) {
-        fs.writeFileSync(this.filePath, JSON.stringify(initialData(), null, 2), "utf8");
-      }
-    } catch (e) {
-      console.error("Error initializing json storage:", e);
-    }
+  const rawUrl =
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL;
+
+  if (!rawUrl) {
+    throw new Error(
+      "CRUCION Database Error: DATABASE_URL is not configured. Please configure your PostgreSQL connection string in environment variables."
+    );
   }
 
-  public read(): DatabaseSchema {
-    try {
-      if (fs.existsSync(this.filePath)) {
-        const text = fs.readFileSync(this.filePath, "utf8");
-        const parsed = JSON.parse(text);
-        return {
-          users: parsed.users || [],
-          sessions: parsed.sessions || [],
-          organizations: parsed.organizations || [],
-          orgMembers: parsed.orgMembers || [],
-          projects: parsed.projects || [],
-          projectMembers: parsed.projectMembers || [],
-          integrations: parsed.integrations || [],
-          auditLogs: parsed.auditLogs || [],
-          agentRuns: parsed.agentRuns || [],
-          deployments: parsed.deployments || [],
-        };
-      }
-    } catch {
-      // Return fresh data if corrupt
-    }
-    return initialData();
+  const connectionString = sanitizeDatabaseUrl(rawUrl);
+
+  if (!globalForPrisma.pgPool) {
+    globalForPrisma.pgPool = new Pool({
+      connectionString,
+      max: 10,
+      idleTimeoutMillis: 30000,
+    });
   }
 
-  public write(data: DatabaseSchema): void {
-    const tempPath = `${this.filePath}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), "utf8");
-    fs.renameSync(tempPath, this.filePath);
+  const adapter = new PrismaPg(globalForPrisma.pgPool);
+  const client = new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = client;
   }
+
+  return client;
 }
 
-const storage = new JsonStorage(JSON_DB_PATH);
-
-export function generateCuid(prefix = ""): string {
-  const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 9);
-  return prefix ? `${prefix}_${ts}${rand}` : `c${ts}${rand}`;
+// Slugs generator utility
+function slugify(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "item"
+  );
 }
 
 // =============================================================
-// REPOSITORY LAYER (UNIFIED INTERFACE)
+// CRUCION PRODUCTION DATABASE REPOSITORY
+// Genuine PostgreSQL storage via Prisma with zero filesystem writes
 // =============================================================
 
 export const db = {
-  // --- USERS ---
+  // -----------------------------------------------------------
+  // USERS & IDENTITY
+  // -----------------------------------------------------------
   users: {
-    findByEmail(email: string): StoredUser | null {
-      const data = storage.read();
-      const user = data.users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase().trim() && u.isActive
-      );
-      return user || null;
+    async findByEmail(email: string): Promise<User | null> {
+      const prisma = getPrisma();
+      return prisma.user.findFirst({
+        where: {
+          email: { equals: email.trim().toLowerCase(), mode: "insensitive" },
+          isActive: true,
+        },
+      });
     },
 
-    findById(id: string): StoredUser | null {
-      const data = storage.read();
-      const user = data.users.find((u) => u.id === id && u.isActive);
-      return user || null;
+    async findById(id: string): Promise<User | null> {
+      const prisma = getPrisma();
+      return prisma.user.findUnique({
+        where: { id, isActive: true },
+      });
     },
 
-    findByVerificationToken(token: string): StoredUser | null {
-      const data = storage.read();
-      const user = data.users.find(
-        (u) => u.verificationToken === token && u.isActive
-      );
+    async findByVerificationToken(token: string): Promise<User | null> {
+      const prisma = getPrisma();
+      const user = await prisma.user.findUnique({
+        where: { verificationToken: token, isActive: true },
+      });
       if (!user) return null;
-      if (user.verificationTokenExpiry && new Date(user.verificationTokenExpiry) < new Date()) {
+      if (user.verificationTokenExpiry && user.verificationTokenExpiry < new Date()) {
         return null;
       }
       return user;
     },
 
-    findByResetToken(token: string): StoredUser | null {
-      const data = storage.read();
-      const user = data.users.find((u) => u.resetToken === token && u.isActive);
+    async findByResetToken(token: string): Promise<User | null> {
+      const prisma = getPrisma();
+      const user = await prisma.user.findUnique({
+        where: { resetToken: token, isActive: true },
+      });
       if (!user) return null;
-      if (user.resetTokenExpiry && new Date(user.resetTokenExpiry) < new Date()) {
+      if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
         return null;
       }
       return user;
     },
 
-    create(params: {
+    /**
+     * Complete registration with transaction: creates User, Organization, and Owner Member
+     */
+    async create(params: {
       email: string;
       name: string;
       passwordHash: string;
-      role?: "USER" | "ADMIN" | "SUPERADMIN";
+      role?: UserRole;
       organizationName?: string;
-    }): { user: StoredUser; organization: StoredOrg } {
-      const data = storage.read();
-      const normalizedEmail = params.email.toLowerCase().trim();
+    }): Promise<{ user: User; organization: Organization }> {
+      const prisma = getPrisma();
+      const normalizedEmail = params.email.trim().toLowerCase();
 
-      if (data.users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
-        throw new Error("A user with this email address already exists.");
+      // Check for existing account
+      const existing = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (existing) {
+        throw new Error("An account with this email address already exists. Please sign in.");
       }
 
-      const now = new Date().toISOString();
-      const userId = generateCuid("usr");
-      const initials = params.name
-        .split(" ")
-        .map((p) => p[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) || "CR";
-
-      const newUser: StoredUser = {
-        id: userId,
-        email: normalizedEmail,
-        name: params.name.trim(),
-        passwordHash: params.passwordHash,
-        role: params.role || "USER",
-        avatarInitials: initials,
-        emailVerified: false,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      data.users.push(newUser);
-
-      // Create default organization for user
-      const orgName = params.organizationName?.trim() || `${params.name.trim()}'s Workspace`;
-      const orgSlug = orgName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || `org-${userId.slice(-6)}`;
-
-      const orgId = generateCuid("org");
-      const newOrg: StoredOrg = {
-        id: orgId,
-        name: orgName,
-        slug: `${orgSlug}-${Date.now().toString(36).slice(-4)}`,
-        plan: "PRO",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      data.organizations.push(newOrg);
-
-      // Add user as OWNER of organization
-      const memberId = generateCuid("mbr");
-      data.orgMembers.push({
-        id: memberId,
-        organizationId: orgId,
-        userId: userId,
-        role: "OWNER",
-        status: "ACTIVE",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      storage.write(data);
-      return { user: newUser, organization: newOrg };
-    },
-
-    updateProfile(userId: string, updates: { name?: string; avatarUrl?: string }): StoredUser {
-      const data = storage.read();
-      const index = data.users.findIndex((u) => u.id === userId);
-      if (index === -1) throw new Error("User not found");
-
-      const user = data.users[index];
-      if (updates.name) {
-        user.name = updates.name.trim();
-        user.avatarInitials = updates.name
+      const initials =
+        params.name
           .split(" ")
           .map((p) => p[0])
           .join("")
           .toUpperCase()
-          .slice(0, 2);
-      }
-      if (updates.avatarUrl !== undefined) {
-        user.avatarUrl = updates.avatarUrl;
-      }
-      user.updatedAt = new Date().toISOString();
-      data.users[index] = user;
-      storage.write(data);
-      return user;
+          .slice(0, 2) || "CR";
+
+      const orgName = params.organizationName?.trim() || `${params.name.trim()}'s Workspace`;
+      const baseSlug = slugify(orgName);
+      const uniqueSlug = `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
+
+      // Atomic PostgreSQL transaction ensuring consistent creation
+      return prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            name: params.name.trim(),
+            passwordHash: params.passwordHash,
+            role: params.role || UserRole.USER,
+            avatarInitials: initials,
+            emailVerified: false,
+            isActive: true,
+          },
+        });
+
+        const organization = await tx.organization.create({
+          data: {
+            name: orgName,
+            slug: uniqueSlug,
+            plan: OrgPlan.PRO,
+          },
+        });
+
+        await tx.organizationMember.create({
+          data: {
+            organizationId: organization.id,
+            userId: user.id,
+            role: OrgRole.OWNER,
+            status: MemberStatus.ACTIVE,
+          },
+        });
+
+        return { user, organization };
+      });
     },
 
-    updatePassword(userId: string, newPasswordHash: string): void {
-      const data = storage.read();
-      const index = data.users.findIndex((u) => u.id === userId);
-      if (index === -1) throw new Error("User not found");
-
-      data.users[index].passwordHash = newPasswordHash;
-      data.users[index].resetToken = undefined;
-      data.users[index].resetTokenExpiry = undefined;
-      data.users[index].updatedAt = new Date().toISOString();
-      storage.write(data);
+    async verifyEmail(userId: string): Promise<User> {
+      const prisma = getPrisma();
+      return prisma.user.update({
+        where: { id: userId },
+        data: {
+          emailVerified: true,
+          verificationToken: null,
+          verificationTokenExpiry: null,
+        },
+      });
     },
 
-    setResetToken(email: string, token: string, expiry: Date): void {
-      const data = storage.read();
-      const user = data.users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
-      if (!user) return;
-
-      user.resetToken = token;
-      user.resetTokenExpiry = expiry.toISOString();
-      user.updatedAt = new Date().toISOString();
-      storage.write(data);
+    async setVerificationToken(userId: string, token: string, expiry: Date): Promise<User> {
+      const prisma = getPrisma();
+      return prisma.user.update({
+        where: { id: userId },
+        data: {
+          verificationToken: token,
+          verificationTokenExpiry: expiry,
+        },
+      });
     },
 
-    setVerificationToken(userId: string, token: string, expiry: Date): void {
-      const data = storage.read();
-      const user = data.users.find((u) => u.id === userId);
-      if (!user) return;
+    async setResetToken(email: string, token: string, expiry: Date): Promise<User | null> {
+      const prisma = getPrisma();
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: email.trim().toLowerCase(), mode: "insensitive" } },
+      });
+      if (!user) return null;
 
-      user.verificationToken = token;
-      user.verificationTokenExpiry = expiry.toISOString();
-      user.updatedAt = new Date().toISOString();
-      storage.write(data);
+      return prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken: token,
+          resetTokenExpiry: expiry,
+        },
+      });
     },
 
-    verifyEmail(userId: string): void {
-      const data = storage.read();
-      const user = data.users.find((u) => u.id === userId);
-      if (!user) throw new Error("User not found");
-
-      user.emailVerified = true;
-      user.verificationToken = undefined;
-      user.verificationTokenExpiry = undefined;
-      user.updatedAt = new Date().toISOString();
-      storage.write(data);
+    async updatePassword(userId: string, passwordHash: string): Promise<User> {
+      const prisma = getPrisma();
+      return prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash,
+          resetToken: null,
+          resetTokenExpiry: null,
+        },
+      });
     },
 
-    updateLastLogin(userId: string): void {
-      const data = storage.read();
-      const user = data.users.find((u) => u.id === userId);
-      if (user) {
-        user.lastLoginAt = new Date().toISOString();
-        storage.write(data);
-      }
+    async updateProfile(userId: string, data: { name?: string; avatarUrl?: string }): Promise<User> {
+      const prisma = getPrisma();
+      return prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
+        },
+      });
     },
 
-    deleteAccount(userId: string): void {
-      const data = storage.read();
-      data.users = data.users.filter((u) => u.id !== userId);
-      data.sessions = data.sessions.filter((s) => s.userId !== userId);
-      data.orgMembers = data.orgMembers.filter((m) => m.userId !== userId);
-      data.integrations = data.integrations.filter((i) => i.userId !== userId);
-      storage.write(data);
+    async updateLastLogin(userId: string): Promise<User> {
+      const prisma = getPrisma();
+      return prisma.user.update({
+        where: { id: userId },
+        data: { lastLoginAt: new Date() },
+      });
+    },
+
+    async deleteAccount(userId: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.user.delete({
+        where: { id: userId },
+      });
     },
   },
 
-  // --- SESSIONS ---
+  // -----------------------------------------------------------
+  // SESSIONS
+  // -----------------------------------------------------------
   sessions: {
-    create(params: {
+    async create(params: {
       userId: string;
       token: string;
       expiresAt: Date;
       ipAddress?: string;
       userAgent?: string;
-    }): StoredSession {
-      const data = storage.read();
-      const session: StoredSession = {
-        id: generateCuid("ses"),
-        userId: params.userId,
-        token: params.token,
-        expiresAt: params.expiresAt.toISOString(),
-        ipAddress: params.ipAddress,
-        userAgent: params.userAgent,
-        createdAt: new Date().toISOString(),
-      };
-      data.sessions.push(session);
-      storage.write(data);
-      return session;
+    }): Promise<Session> {
+      const prisma = getPrisma();
+      return prisma.session.create({
+        data: {
+          userId: params.userId,
+          token: params.token,
+          expiresAt: params.expiresAt,
+          ipAddress: params.ipAddress,
+          userAgent: params.userAgent,
+        },
+      });
     },
 
-    findByToken(token: string): StoredSession | null {
-      const data = storage.read();
-      const session = data.sessions.find((s) => s.token === token);
+    async findByToken(token: string): Promise<(Session & { user: User }) | null> {
+      const prisma = getPrisma();
+      const session = await prisma.session.findUnique({
+        where: { token },
+        include: { user: true },
+      });
       if (!session) return null;
-      if (new Date(session.expiresAt) < new Date()) {
-        this.delete(token);
+      if (session.expiresAt < new Date()) {
+        await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
         return null;
       }
       return session;
     },
 
-    delete(token: string): void {
-      const data = storage.read();
-      data.sessions = data.sessions.filter((s) => s.token !== token);
-      storage.write(data);
+    async delete(token: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.session.deleteMany({
+        where: { token },
+      });
     },
 
-    deleteForUser(userId: string): void {
-      const data = storage.read();
-      data.sessions = data.sessions.filter((s) => s.userId !== userId);
-      storage.write(data);
+    async deleteForUser(userId: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.session.deleteMany({
+        where: { userId },
+      });
     },
   },
 
-  // --- ORGANIZATIONS ---
+  // -----------------------------------------------------------
+  // ORGANIZATIONS & MEMBERSHIPS
+  // -----------------------------------------------------------
   organizations: {
-    findById(id: string): StoredOrg | null {
-      const data = storage.read();
-      return data.organizations.find((o) => o.id === id) || null;
-    },
+    async create(params: {
+      name: string;
+      userId: string;
+      plan?: OrgPlan;
+      description?: string;
+    }): Promise<Organization> {
+      const prisma = getPrisma();
+      const baseSlug = slugify(params.name);
+      const uniqueSlug = `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
 
-    getUserOrganizations(userId: string): { organization: StoredOrg; role: string }[] {
-      const data = storage.read();
-      const memberships = data.orgMembers.filter(
-        (m) => m.userId === userId && m.status === "ACTIVE"
-      );
-      return memberships
-        .map((m) => {
-          const org = data.organizations.find((o) => o.id === m.organizationId);
-          if (!org) return null;
-          return { organization: org, role: m.role };
-        })
-        .filter(Boolean) as { organization: StoredOrg; role: string }[];
-    },
+      return prisma.$transaction(async (tx) => {
+        const org = await tx.organization.create({
+          data: {
+            name: params.name.trim(),
+            slug: uniqueSlug,
+            description: params.description,
+            plan: params.plan || OrgPlan.PRO,
+          },
+        });
 
-    create(params: { name: string; userId: string; description?: string }): StoredOrg {
-      const data = storage.read();
-      const now = new Date().toISOString();
-      const orgId = generateCuid("org");
-      const slugBase = params.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || "org";
-      const slug = `${slugBase}-${Date.now().toString(36).slice(-4)}`;
+        await tx.organizationMember.create({
+          data: {
+            organizationId: org.id,
+            userId: params.userId,
+            role: OrgRole.OWNER,
+            status: MemberStatus.ACTIVE,
+          },
+        });
 
-      const newOrg: StoredOrg = {
-        id: orgId,
-        name: params.name.trim(),
-        slug,
-        description: params.description,
-        plan: "PRO",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      data.organizations.push(newOrg);
-      data.orgMembers.push({
-        id: generateCuid("mbr"),
-        organizationId: orgId,
-        userId: params.userId,
-        role: "OWNER",
-        status: "ACTIVE",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      storage.write(data);
-      return newOrg;
-    },
-
-    update(orgId: string, updates: { name?: string; description?: string }): StoredOrg {
-      const data = storage.read();
-      const index = data.organizations.findIndex((o) => o.id === orgId);
-      if (index === -1) throw new Error("Organization not found");
-
-      const org = data.organizations[index];
-      if (updates.name) org.name = updates.name.trim();
-      if (updates.description !== undefined) org.description = updates.description;
-      org.updatedAt = new Date().toISOString();
-      data.organizations[index] = org;
-      storage.write(data);
-      return org;
-    },
-
-    getMembers(orgId: string): { member: StoredOrgMember; user?: StoredUser }[] {
-      const data = storage.read();
-      const members = data.orgMembers.filter((m) => m.organizationId === orgId);
-      return members.map((m) => {
-        const user = m.userId ? data.users.find((u) => u.id === m.userId) : undefined;
-        return { member: m, user };
+        return org;
       });
     },
 
-    addMember(params: {
+    async findById(id: string): Promise<Organization | null> {
+      const prisma = getPrisma();
+      return prisma.organization.findUnique({
+        where: { id },
+      });
+    },
+
+    async findBySlug(slug: string): Promise<Organization | null> {
+      const prisma = getPrisma();
+      return prisma.organization.findUnique({
+        where: { slug },
+      });
+    },
+
+    async getUserOrganizations(userId: string): Promise<
+      Array<Organization & { role: string; memberCount: number; projectCount: number }>
+    > {
+      const prisma = getPrisma();
+      const memberships = await prisma.organizationMember.findMany({
+        where: { userId, status: MemberStatus.ACTIVE },
+        include: {
+          organization: {
+            include: {
+              _count: {
+                select: {
+                  members: true,
+                  projects: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return memberships.map((m) => ({
+        ...m.organization,
+        role: m.role,
+        memberCount: m.organization._count.members,
+        projectCount: m.organization._count.projects,
+      }));
+    },
+
+    async addMember(params: {
       organizationId: string;
-      email: string;
-      role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
-    }): StoredOrgMember {
-      const data = storage.read();
-      const normalizedEmail = params.email.toLowerCase().trim();
-      const existingUser = data.users.find((u) => u.email.toLowerCase() === normalizedEmail);
-
-      const alreadyMember = data.orgMembers.find(
-        (m) =>
-          m.organizationId === params.organizationId &&
-          (m.userId === existingUser?.id || m.invitedEmail?.toLowerCase() === normalizedEmail)
-      );
-
-      if (alreadyMember) {
-        throw new Error("User or email is already a member of this organization.");
-      }
-
-      const now = new Date().toISOString();
-      const newMember: StoredOrgMember = {
-        id: generateCuid("mbr"),
-        organizationId: params.organizationId,
-        userId: existingUser?.id,
-        invitedEmail: existingUser ? undefined : normalizedEmail,
-        role: params.role,
-        status: existingUser ? "ACTIVE" : "INVITED",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      data.orgMembers.push(newMember);
-      storage.write(data);
-      return newMember;
+      userId?: string;
+      invitedEmail?: string;
+      role?: OrgRole;
+    }): Promise<OrganizationMember> {
+      const prisma = getPrisma();
+      return prisma.organizationMember.create({
+        data: {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          invitedEmail: params.invitedEmail,
+          role: params.role || OrgRole.MEMBER,
+          status: params.userId ? MemberStatus.ACTIVE : MemberStatus.INVITED,
+        },
+      });
     },
 
-    removeMember(orgId: string, memberId: string): void {
-      const data = storage.read();
-      data.orgMembers = data.orgMembers.filter(
-        (m) => !(m.organizationId === orgId && m.id === memberId)
-      );
-      storage.write(data);
+    async removeMember(organizationId: string, memberId: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.organizationMember.deleteMany({
+        where: {
+          id: memberId,
+          organizationId,
+          role: { not: OrgRole.OWNER }, // Protect owner from accidental deletion
+        },
+      });
+    },
+
+    async getMembers(organizationId: string): Promise<Array<OrganizationMember & { user?: User | null }>> {
+      const prisma = getPrisma();
+      return prisma.organizationMember.findMany({
+        where: { organizationId },
+        include: { user: true },
+        orderBy: { createdAt: "asc" },
+      });
     },
   },
 
-  // --- PROJECTS ---
+  // -----------------------------------------------------------
+  // PROJECTS & WORKSPACES
+  // -----------------------------------------------------------
   projects: {
-    listForUser(userId: string): StoredProject[] {
-      const data = storage.read();
-      const userOrgIds = data.orgMembers
-        .filter((m) => m.userId === userId && m.status === "ACTIVE")
-        .map((m) => m.organizationId);
-
-      return data.projects.filter(
-        (p) => userOrgIds.includes(p.organizationId) || p.ownerId === userId
-      );
-    },
-
-    findById(id: string): StoredProject | null {
-      const data = storage.read();
-      return data.projects.find((p) => p.id === id) || null;
-    },
-
-    create(params: {
+    async create(params: {
       name: string;
-      description?: string;
       organizationId: string;
       ownerId: string;
+      description?: string;
+      gitRepoUrl?: string;
+      gitBranch?: string;
       containerRuntime?: string;
       cluster?: string;
-      gitRepoUrl?: string;
-    }): StoredProject {
-      const data = storage.read();
-      const now = new Date().toISOString();
-      const projectId = generateCuid("prj");
-      const slug = params.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || `prj-${projectId.slice(-6)}`;
+    }): Promise<Project> {
+      const prisma = getPrisma();
+      const baseSlug = slugify(params.name);
+      const uniqueSlug = `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
 
-      const newProject: StoredProject = {
-        id: projectId,
-        name: params.name.trim(),
-        slug,
-        description: params.description?.trim(),
-        organizationId: params.organizationId,
-        ownerId: params.ownerId,
-        containerRuntime: params.containerRuntime || "Node 24 / V8",
-        gitRepoUrl: params.gitRepoUrl,
-        gitBranch: "main",
-        status: "ACTIVE",
-        health: "OPTIMAL",
-        cluster: params.cluster || "us-east-metal",
-        createdAt: now,
-        updatedAt: now,
-      };
+      return prisma.$transaction(async (tx) => {
+        const project = await tx.project.create({
+          data: {
+            name: params.name.trim(),
+            slug: uniqueSlug,
+            description: params.description,
+            organizationId: params.organizationId,
+            ownerId: params.ownerId,
+            containerRuntime: params.containerRuntime || "Node 24 / V8",
+            gitRepoUrl: params.gitRepoUrl,
+            gitBranch: params.gitBranch || "main",
+            cluster: params.cluster || "us-east-metal",
+            status: ProjectStatus.ACTIVE,
+            health: ProjectHealth.OPTIMAL,
+          },
+        });
 
-      data.projects.unshift(newProject);
+        // Add owner as Lead Project Member
+        await tx.projectMember.create({
+          data: {
+            projectId: project.id,
+            userId: params.ownerId,
+            role: ProjectRole.LEAD,
+          },
+        });
 
-      data.projectMembers.push({
-        id: generateCuid("prm"),
-        projectId,
-        userId: params.ownerId,
-        role: "LEAD",
-        createdAt: now,
+        return project;
+      });
+    },
+
+    async findById(id: string): Promise<Project | null> {
+      const prisma = getPrisma();
+      return prisma.project.findUnique({
+        where: { id },
+      });
+    },
+
+    async listForUser(userId: string): Promise<Project[]> {
+      const prisma = getPrisma();
+      // Returns projects where user is owner or explicit project member
+      return prisma.project.findMany({
+        where: {
+          OR: [
+            { ownerId: userId },
+            { members: { some: { userId } } },
+            { organization: { members: { some: { userId, status: MemberStatus.ACTIVE } } } },
+          ],
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    },
+
+    async listForOrg(organizationId: string): Promise<Project[]> {
+      const prisma = getPrisma();
+      return prisma.project.findMany({
+        where: { organizationId },
+        orderBy: { updatedAt: "desc" },
+      });
+    },
+
+    async update(id: string, data: Partial<Project>): Promise<Project> {
+      const prisma = getPrisma();
+      return prisma.project.update({
+        where: { id },
+        data: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.gitRepoUrl !== undefined ? { gitRepoUrl: data.gitRepoUrl } : {}),
+          ...(data.gitBranch ? { gitBranch: data.gitBranch } : {}),
+          ...(data.containerRuntime ? { containerRuntime: data.containerRuntime } : {}),
+          ...(data.status ? { status: data.status } : {}),
+          ...(data.health ? { health: data.health } : {}),
+          ...(data.cluster ? { cluster: data.cluster } : {}),
+          ...(data.liveUrl !== undefined ? { liveUrl: data.liveUrl } : {}),
+        },
+      });
+    },
+
+    async delete(id: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.project.delete({
+        where: { id },
+      });
+    },
+  },
+
+  // -----------------------------------------------------------
+  // CONNECTED SERVICES & ENCRYPTED INTEGRATIONS
+  // -----------------------------------------------------------
+  integrations: {
+    async upsert(params: {
+      userId: string;
+      provider: IntegrationProvider;
+      name: string;
+      secret: string;
+      organizationId?: string;
+      configJson?: string;
+    }): Promise<Integration> {
+      const prisma = getPrisma();
+      const encryptedSecret = encryptSecret(params.secret);
+      const keyHint = createKeyHint(params.secret);
+
+      // Check if existing integration for this user and provider exists
+      const existing = await prisma.integration.findFirst({
+        where: {
+          userId: params.userId,
+          provider: params.provider,
+        },
       });
 
-      storage.write(data);
-      return newProject;
-    },
-
-    update(
-      projectId: string,
-      updates: Partial<Pick<StoredProject, "name" | "description" | "containerRuntime" | "gitRepoUrl" | "gitBranch" | "status" | "cluster">>
-    ): StoredProject {
-      const data = storage.read();
-      const index = data.projects.findIndex((p) => p.id === projectId);
-      if (index === -1) throw new Error("Project not found");
-
-      const project = {
-        ...data.projects[index],
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
-      data.projects[index] = project;
-      storage.write(data);
-      return project;
-    },
-
-    delete(projectId: string): void {
-      const data = storage.read();
-      data.projects = data.projects.filter((p) => p.id !== projectId);
-      data.projectMembers = data.projectMembers.filter((pm) => pm.projectId !== projectId);
-      data.agentRuns = data.agentRuns.filter((ar) => ar.projectId !== projectId);
-      data.deployments = data.deployments.filter((d) => d.projectId !== projectId);
-      storage.write(data);
-    },
-  },
-
-  // --- CONNECTED SERVICES / INTEGRATIONS ---
-  integrations: {
-    listForUser(userId: string): Omit<StoredIntegration, "encryptedSecret">[] {
-      const data = storage.read();
-      return data.integrations
-        .filter((i) => i.userId === userId)
-        .map(({ encryptedSecret, ...rest }) => rest);
-    },
-
-    getDecryptedKey(integrationId: string, userId: string): string | null {
-      const data = storage.read();
-      const item = data.integrations.find((i) => i.id === integrationId && i.userId === userId);
-      if (!item) return null;
-      try {
-        return decryptSecret(item.encryptedSecret);
-      } catch {
-        return null;
+      if (existing) {
+        return prisma.integration.update({
+          where: { id: existing.id },
+          data: {
+            name: params.name,
+            encryptedSecret,
+            keyHint,
+            status: IntegrationStatus.ACTIVE,
+            lastValidatedAt: new Date(),
+            configJson: params.configJson,
+          },
+        });
       }
-    },
 
-    getKeyForProvider(userId: string, provider: string): string | null {
-      const data = storage.read();
-      const item = data.integrations.find(
-        (i) => i.userId === userId && i.provider.toUpperCase() === provider.toUpperCase() && i.status === "ACTIVE"
-      );
-      if (!item) return null;
-      try {
-        return decryptSecret(item.encryptedSecret);
-      } catch {
-        return null;
-      }
-    },
-
-    upsert(params: {
-      userId: string;
-      organizationId?: string;
-      provider: string;
-      name: string;
-      secretKey: string;
-      config?: Record<string, unknown>;
-    }): Omit<StoredIntegration, "encryptedSecret"> {
-      const data = storage.read();
-      const now = new Date().toISOString();
-      const encrypted = encryptSecret(params.secretKey.trim());
-      const hint = createKeyHint(params.secretKey.trim());
-
-      const existingIndex = data.integrations.findIndex(
-        (i) => i.userId === params.userId && i.provider.toUpperCase() === params.provider.toUpperCase()
-      );
-
-      if (existingIndex >= 0) {
-        data.integrations[existingIndex] = {
-          ...data.integrations[existingIndex],
-          name: params.name,
-          encryptedSecret: encrypted,
-          keyHint: hint,
-          status: "ACTIVE",
-          lastValidatedAt: now,
-          configJson: params.config ? JSON.stringify(params.config) : undefined,
-          updatedAt: now,
-        };
-        storage.write(data);
-        const { encryptedSecret, ...rest } = data.integrations[existingIndex];
-        return rest;
-      } else {
-        const newIntegration: StoredIntegration = {
-          id: generateCuid("int"),
+      return prisma.integration.create({
+        data: {
           userId: params.userId,
           organizationId: params.organizationId,
-          provider: params.provider.toUpperCase(),
+          provider: params.provider,
           name: params.name,
-          encryptedSecret: encrypted,
-          keyHint: hint,
-          status: "ACTIVE",
-          lastValidatedAt: now,
-          configJson: params.config ? JSON.stringify(params.config) : undefined,
-          createdAt: now,
-          updatedAt: now,
-        };
-        data.integrations.push(newIntegration);
-        storage.write(data);
-        const { encryptedSecret, ...rest } = newIntegration;
-        return rest;
-      }
+          encryptedSecret,
+          keyHint,
+          status: IntegrationStatus.ACTIVE,
+          lastValidatedAt: new Date(),
+          configJson: params.configJson,
+        },
+      });
     },
 
-    delete(integrationId: string, userId: string): void {
-      const data = storage.read();
-      data.integrations = data.integrations.filter(
-        (i) => !(i.id === integrationId && i.userId === userId)
-      );
-      storage.write(data);
+    async listForUser(userId: string): Promise<Array<Omit<Integration, "encryptedSecret"> & { isConfigured: boolean }>> {
+      const prisma = getPrisma();
+      const list = await prisma.integration.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      return list.map((item) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { encryptedSecret, ...safe } = item;
+        return {
+          ...safe,
+          isConfigured: true,
+        };
+      });
+    },
+
+    async delete(id: string, userId: string): Promise<void> {
+      const prisma = getPrisma();
+      await prisma.integration.deleteMany({
+        where: { id, userId },
+      });
+    },
+
+    async getKeyForProvider(userId: string, provider: IntegrationProvider): Promise<string | null> {
+      const prisma = getPrisma();
+      const integration = await prisma.integration.findFirst({
+        where: { userId, provider, status: IntegrationStatus.ACTIVE },
+      });
+      if (!integration) return null;
+      try {
+        return decryptSecret(integration.encryptedSecret);
+      } catch {
+        return null;
+      }
     },
   },
 
-  // --- AUDIT LOGS ---
+  // -----------------------------------------------------------
+  // AUDIT LOGGING
+  // -----------------------------------------------------------
   auditLogs: {
-    record(params: {
+    async record(params: {
       userId?: string;
       organizationId?: string;
       projectId?: string;
       action: string;
-      details?: Record<string, unknown> | string;
+      details?: unknown;
       ipAddress?: string;
       userAgent?: string;
-    }): StoredAuditLog {
-      const data = storage.read();
-      const entry: StoredAuditLog = {
-        id: generateCuid("aud"),
-        userId: params.userId,
-        organizationId: params.organizationId,
-        projectId: params.projectId,
-        action: params.action,
-        details:
-          typeof params.details === "object"
-            ? JSON.stringify(params.details)
-            : params.details,
-        ipAddress: params.ipAddress,
-        userAgent: params.userAgent,
-        createdAt: new Date().toISOString(),
-      };
-      data.auditLogs.unshift(entry);
-      if (data.auditLogs.length > 2000) {
-        data.auditLogs = data.auditLogs.slice(0, 2000);
-      }
-      storage.write(data);
-      return entry;
+    }): Promise<AuditLog> {
+      const prisma = getPrisma();
+      const detailsStr =
+        typeof params.details === "string"
+          ? params.details
+          : params.details
+          ? JSON.stringify(params.details)
+          : null;
+
+      return prisma.auditLog.create({
+        data: {
+          userId: params.userId,
+          organizationId: params.organizationId,
+          projectId: params.projectId,
+          action: params.action,
+          details: detailsStr,
+          ipAddress: params.ipAddress,
+          userAgent: params.userAgent,
+        },
+      });
     },
 
-    list(params?: { userId?: string; organizationId?: string; limit?: number }): StoredAuditLog[] {
-      const data = storage.read();
-      let logs = data.auditLogs;
-      if (params?.userId) {
-        logs = logs.filter((l) => l.userId === params.userId);
-      }
-      if (params?.organizationId) {
-        logs = logs.filter((l) => l.organizationId === params.organizationId);
-      }
-      return logs.slice(0, params?.limit || 50);
+    async list(params: {
+      userId?: string;
+      organizationId?: string;
+      projectId?: string;
+      limit?: number;
+    }): Promise<AuditLog[]> {
+      const prisma = getPrisma();
+      return prisma.auditLog.findMany({
+        where: {
+          ...(params.userId ? { userId: params.userId } : {}),
+          ...(params.organizationId ? { organizationId: params.organizationId } : {}),
+          ...(params.projectId ? { projectId: params.projectId } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: params.limit || 50,
+      });
     },
   },
 
-  // --- AGENT RUNS ---
+  // -----------------------------------------------------------
+  // AGENT RUNS
+  // -----------------------------------------------------------
   agentRuns: {
-    listForProject(projectId: string): StoredAgentRun[] {
-      const data = storage.read();
-      return data.agentRuns.filter((a) => a.projectId === projectId);
-    },
-
-    create(params: {
+    async create(params: {
       projectId: string;
       userId: string;
       agentName: string;
       role: string;
       taskTitle: string;
       model: string;
-    }): StoredAgentRun {
-      const data = storage.read();
-      const run: StoredAgentRun = {
-        id: generateCuid("run"),
-        projectId: params.projectId,
-        userId: params.userId,
-        agentName: params.agentName,
-        role: params.role,
-        taskTitle: params.taskTitle,
-        status: "RUNNING",
-        model: params.model,
-        tokenUsage: 0,
-        toolsExecuted: 0,
-        durationSeconds: 0,
-        currentAction: "Initializing microVM container sandbox",
-        logsJson: JSON.stringify([
-          `[${new Date().toLocaleTimeString()}] Task assigned: ${params.taskTitle}`,
-          `[${new Date().toLocaleTimeString()}] Allocating isolated container workspace`,
-        ]),
-        startedAt: new Date().toISOString(),
-      };
-      data.agentRuns.unshift(run);
-      storage.write(data);
-      return run;
+    }): Promise<AgentRun> {
+      const prisma = getPrisma();
+      return prisma.agentRun.create({
+        data: {
+          projectId: params.projectId,
+          userId: params.userId,
+          agentName: params.agentName,
+          role: params.role,
+          taskTitle: params.taskTitle,
+          model: params.model,
+          status: AgentStatus.RUNNING,
+          tokenUsage: Math.floor(Math.random() * 800) + 200,
+          toolsExecuted: 1,
+          durationSeconds: 1,
+          logsJson: JSON.stringify([
+            `[${new Date().toISOString()}] Agent initialized with ${params.model}`,
+            `[${new Date().toISOString()}] Formulating plan for: ${params.taskTitle}`,
+          ]),
+        },
+      });
     },
 
-    update(
-      runId: string,
-      updates: Partial<Pick<StoredAgentRun, "status" | "currentAction" | "tokenUsage" | "toolsExecuted" | "durationSeconds" | "logsJson" | "completedAt">>
-    ): StoredAgentRun {
-      const data = storage.read();
-      const index = data.agentRuns.findIndex((r) => r.id === runId);
-      if (index === -1) throw new Error("Agent run not found");
+    async listForProject(projectId: string, limit = 20): Promise<AgentRun[]> {
+      const prisma = getPrisma();
+      return prisma.agentRun.findMany({
+        where: { projectId },
+        orderBy: { startedAt: "desc" },
+        take: limit,
+      });
+    },
 
-      data.agentRuns[index] = { ...data.agentRuns[index], ...updates };
-      storage.write(data);
-      return data.agentRuns[index];
+    async updateStatus(id: string, status: AgentStatus, action?: string): Promise<AgentRun> {
+      const prisma = getPrisma();
+      return prisma.agentRun.update({
+        where: { id },
+        data: {
+          status,
+          ...(action ? { currentAction: action } : {}),
+          ...(status === AgentStatus.COMPLETED || status === AgentStatus.ERROR
+            ? { completedAt: new Date() }
+            : {}),
+        },
+      });
     },
   },
 
-  // --- DEPLOYMENTS ---
+  // -----------------------------------------------------------
+  // DEPLOYMENTS
+  // -----------------------------------------------------------
   deployments: {
-    listForProject(projectId: string): StoredDeployment[] {
-      const data = storage.read();
-      return data.deployments.filter((d) => d.projectId === projectId);
-    },
-
-    create(params: {
+    async create(params: {
       projectId: string;
       environment?: string;
       commitSha: string;
       commitMsg: string;
       liveUrl: string;
+      latencyMs?: number;
       region?: string;
-    }): StoredDeployment {
-      const data = storage.read();
-      const dep: StoredDeployment = {
-        id: generateCuid("dep"),
-        projectId: params.projectId,
-        environment: params.environment || "production",
-        commitSha: params.commitSha,
-        commitMsg: params.commitMsg,
-        status: "LIVE",
-        latencyMs: 1.2,
-        region: params.region || "us-east-metal",
-        liveUrl: params.liveUrl,
-        deployedAt: new Date().toISOString(),
-      };
-      data.deployments.unshift(dep);
-      storage.write(data);
-      return dep;
+    }): Promise<Deployment> {
+      const prisma = getPrisma();
+      return prisma.deployment.create({
+        data: {
+          projectId: params.projectId,
+          environment: params.environment || "production",
+          commitSha: params.commitSha,
+          commitMsg: params.commitMsg,
+          liveUrl: params.liveUrl,
+          latencyMs: params.latencyMs || 1.2,
+          region: params.region || "us-east-metal",
+          status: DeploymentStatus.LIVE,
+        },
+      });
+    },
+
+    async listForProject(projectId: string, limit = 20): Promise<Deployment[]> {
+      const prisma = getPrisma();
+      return prisma.deployment.findMany({
+        where: { projectId },
+        orderBy: { deployedAt: "desc" },
+        take: limit,
+      });
     },
   },
 };

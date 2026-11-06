@@ -2,7 +2,8 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { SessionPayload, SafeUser } from "./auth-definitions";
-import { db, generateCuid } from "./db";
+import { db } from "./db";
+import { generateSecureToken } from "./crypto";
 
 const secretKey =
   process.env.SESSION_SECRET ||
@@ -49,7 +50,7 @@ export async function createSession(
   meta?: { ipAddress?: string; userAgent?: string }
 ): Promise<string> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const sessionTokenId = generateCuid("tok");
+  const sessionTokenId = generateSecureToken(32);
 
   const sessionPayload: SessionPayload = {
     userId: user.id,
@@ -63,14 +64,18 @@ export async function createSession(
 
   const jwt = await encrypt(sessionPayload);
 
-  // Store session in DB for revocation tracking
-  db.sessions.create({
-    userId: user.id,
-    token: sessionTokenId,
-    expiresAt,
-    ipAddress: meta?.ipAddress,
-    userAgent: meta?.userAgent,
-  });
+  // Store session in PostgreSQL DB for revocation tracking
+  try {
+    await db.sessions.create({
+      userId: user.id,
+      token: sessionTokenId,
+      expiresAt,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent,
+    });
+  } catch (err) {
+    console.error("Failed to persist session to database:", err);
+  }
 
   const cookieStore = await cookies();
   cookieStore.set("crucion_session", jwt, {
@@ -105,12 +110,12 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
   if (!session) return null;
 
   try {
-    const user = db.users.findById(session.userId);
+    const user = await db.users.findById(session.userId);
     if (!user) return null;
 
     // Get user's primary organization
-    const orgs = db.organizations.getUserOrganizations(user.id);
-    const primaryOrg = orgs[0]?.organization?.name || "Personal Workspace";
+    const orgs = await db.organizations.getUserOrganizations(user.id);
+    const primaryOrg = orgs[0]?.name || "Personal Workspace";
 
     return {
       id: user.id,
@@ -119,8 +124,8 @@ export async function getCurrentUser(): Promise<SafeUser | null> {
       role: user.role,
       organization: primaryOrg,
       avatarInitials: user.avatarInitials || user.name.slice(0, 2).toUpperCase(),
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt || null,
+      createdAt: user.createdAt.toISOString(),
+      lastLoginAt: user.lastLoginAt?.toISOString() || null,
       isActive: user.isActive,
       emailVerified: user.emailVerified,
     };
@@ -150,7 +155,11 @@ export async function updateSession(): Promise<void> {
 export async function deleteSession(): Promise<void> {
   const session = await getSession();
   if (session?.userId) {
-    db.sessions.deleteForUser(session.userId);
+    try {
+      await db.sessions.deleteForUser(session.userId);
+    } catch {
+      // Ignored if DB is momentarily unreachable
+    }
   }
   const cookieStore = await cookies();
   cookieStore.delete("crucion_session");

@@ -8,9 +8,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const organizations = db.organizations.getUserOrganizations(user.id);
-  const projects = db.projects.listForUser(user.id);
-  const integrations = db.integrations.listForUser(user.id);
+  const organizations = await db.organizations.getUserOrganizations(user.id);
+  const projects = await db.projects.listForUser(user.id);
+  const integrations = await db.integrations.listForUser(user.id);
 
   return NextResponse.json({
     user,

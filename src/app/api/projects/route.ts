@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const projects = db.projects.listForUser(user.id);
+  const projects = await db.projects.listForUser(user.id);
   return NextResponse.json({ projects });
 }
 
@@ -30,13 +30,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const orgs = db.organizations.getUserOrganizations(user.id);
-    const orgId = orgs[0]?.organization?.id;
+    const orgs = await db.organizations.getUserOrganizations(user.id);
+    const orgId = orgs[0]?.id;
     if (!orgId) {
       return NextResponse.json({ error: "No organization found" }, { status: 400 });
     }
 
-    const project = db.projects.create({
+    const project = await db.projects.create({
       name: validated.data.name,
       description: validated.data.description,
       organizationId: orgId,
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       gitRepoUrl: validated.data.gitRepoUrl,
     });
 
-    db.auditLogs.record({
+    await db.auditLogs.record({
       userId: user.id,
       organizationId: orgId,
       projectId: project.id,
