@@ -121,6 +121,16 @@ function slugify(text: string): string {
   );
 }
 
+// Ensure local environment variables are loaded in test / script runners if not already set
+if (typeof process !== "undefined" && !process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("dotenv").config({ path: ".env.local" });
+  } catch {
+    // Environment variables already provided by hosting runtime
+  }
+}
+
 // =============================================================
 // CRUCION PRODUCTION DATABASE REPOSITORY
 // Genuine PostgreSQL storage via Prisma with zero filesystem writes
